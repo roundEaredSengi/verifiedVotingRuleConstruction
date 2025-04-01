@@ -39,8 +39,8 @@ text \<open>
   To enable currying, the Election type is not used here because that would require tuples.
 \<close>
 
-type_synonym ('a, 'v, 'r) Electoral_Module = "'v set \<Rightarrow> 'a set \<Rightarrow>
-        ('a, 'v) Profile \<Rightarrow> 'r"
+type_synonym ('a, 'v, 'r) Electoral_Module = 
+  "'v set \<Rightarrow> 'a set \<Rightarrow> ('a, 'v) Profile \<Rightarrow> 'r"
 
 fun fun\<^sub>\<E> :: "('v set \<Rightarrow> 'a set \<Rightarrow> ('a, 'v) Profile \<Rightarrow> 'r) \<Rightarrow>
         (('a, 'v) Election \<Rightarrow> 'r)" where
