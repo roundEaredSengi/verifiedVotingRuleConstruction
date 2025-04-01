@@ -38,4 +38,23 @@ fun simple_voting_game :: "'v Cooperative_Game \<Rightarrow> bool" where
   "simple_voting_game G = 
       (total_payoff G = 1 \<and> monotone G \<and> null G)"
 
+abbreviation num_players :: "'v Cooperative_Game \<Rightarrow> nat" where
+  "num_players G \<equiv> card (players G)"
+
+subsection \<open>Classical Power Indices\<close>
+
+fun swing_votes :: "'v Cooperative_Game \<Rightarrow> 'v \<Rightarrow> ('v set) set" where
+  "swing_votes G v = 
+    {S. S \<subseteq> players G \<and> partial_payoff G (S - {v}) \<noteq> partial_payoff G (S \<union> {v})}"
+
+abbreviation pos_swing_votes :: "'v Cooperative_Game \<Rightarrow> 'v \<Rightarrow> ('v set) set" where
+  "pos_swing_votes G v \<equiv> {S. S \<in> swing_votes G v \<and> v \<in> S}"
+
+fun banzhaf :: "'v Cooperative_Game \<Rightarrow> ('v \<Rightarrow> real)" where
+  "banzhaf G v = 1/(2^(num_players G)) * (card (swing_votes G v))"
+
+fun shapley_shubik :: "'v Cooperative_Game \<Rightarrow> ('v \<Rightarrow> real)" where
+  "shapley_shubik G v = 1/(fact (num_players G)) * 
+    (\<Sum> S \<in> pos_swing_votes G v. (fact (card S - 1)) * (fact (card (players G - S))))"
+
 end
