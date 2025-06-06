@@ -18,13 +18,14 @@ chapter browser_info
 session Verified_Voting_Rule_Construction = HOL +
   description
     \<open>Verified Construction of Fair Voting Rules\<close>
-  options [timeout = 400, browser_info, document = pdf, document_output = "output",
+  options [timeout = 1200, browser_info, document = pdf, document_output = "output",
             document_variants = "document:outline=/proof,/ML"]
 
   sessions
     "HOL-Library"
     "HOL-Analysis"
     "HOL-Combinatorics"
+    "HOL-Probability"
     "HOL-Algebra"
     "List-Index"
     "Collections"
@@ -77,6 +78,7 @@ session Verified_Voting_Rule_Construction = HOL +
     "Compositional_Structures/Basic_Modules/Component_Types/Distance_Rationalization_Symmetry"
     "Compositional_Structures/Basic_Modules/Component_Types/Quotient_Distance_Rationalization"
     "Compositional_Structures/Basic_Modules/Component_Types/Interpretation_Code"
+    "Compositional_Structures/Basic_Modules/Component_Types/Voting_Power"
   (* "Basic Modules" *)
     "Compositional_Structures/Basic_Modules/Defer_Module"
     "Compositional_Structures/Basic_Modules/Drop_Module"
