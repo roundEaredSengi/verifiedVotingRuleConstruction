@@ -52,21 +52,19 @@ fun swing_votes ::
 fun discrete_dist :: "'x Distance" where
   "discrete_dist x y = (if (x = y) then 0 else 1)"
 
+text \<open>
+  The raw weight of an election e is the total distance 
+  that can be achieved summed over ALL its different swing votes\<close>
 fun raw_weight :: 
   "'r Distance \<Rightarrow> ('a, 'v) Election set \<Rightarrow> ('a, 'v, 'r) Swing_Weight" where
   "raw_weight d E f e v = (\<Sum> (e1, e2) \<in> swing_votes f E v. 
-    (discrete_dist e e1) * (d (fun\<^sub>\<E> f e1) (fun\<^sub>\<E> f e2)))"
+    (1 - discrete_dist e1 e) * (d (fun\<^sub>\<E> f e1) (fun\<^sub>\<E> f e2)))"
 
 text \<open>
   Raw power defines the weights of swing elections as the 
   total result distance achievable via swing voting.\<close>
 fun raw_power :: "'r Distance \<Rightarrow> ('a, 'v, 'r) Voting_Power" where
   "raw_power d f E v = weighted_voting_power f E (raw_weight d E) v"
-
-subsection \<open>Specific Power Indices\<close>
-
-fun banzhaf\<^sub>r\<^sub>a\<^sub>w :: "('a, 'v, 'r) Voting_Power" where
-  "banzhaf\<^sub>r\<^sub>a\<^sub>w f E v = (1/(ereal (card E))) * (raw_power discrete_dist f E v)"
 
 text \<open>Identically distributed probability space.\<close>
 locale idd_prob_space = prob_space +                   
