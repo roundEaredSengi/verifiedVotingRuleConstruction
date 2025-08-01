@@ -192,12 +192,15 @@ fun voter :: "('a, 'v, 'r) Voting_Power_Domain \<Rightarrow> 'v" where
 
 subsection \<open>Abstract Voting Power Indices and their Characterisations\<close>
 
+fun uncurry3 :: "('w \<Rightarrow> 'x \<Rightarrow> 'y \<Rightarrow> 'z) \<Rightarrow> (('w \<times> 'x \<times> 'y) \<Rightarrow> 'z)" where
+  "uncurry3 f = (\<lambda>(w,x,y). f w x y)"
+
 locale voting_power_measure =
   fixes 
     \<delta> :: "('a, 'v, 'r) Voting_Power" and
     domain :: "('a, 'v, 'r) Voting_Power_Domain set" 
     (* domain on which delta operates *)
-    (* every element defines a concrete configuration in which to determine a voters power:
+    (* every element defines a concrete configuration in which to determine a voter's power:
         the voting rule, the voter as well as the domain of valid profiles/elections to consider *)
 begin
 
@@ -211,12 +214,11 @@ fun rename_pow ::
   "('v \<Rightarrow> 'v) \<Rightarrow> (('a, 'v, 'r) Voting_Power_Domain \<Rightarrow> ('a, 'v, 'r) Voting_Power_Domain)" where
   "rename_pow \<pi> (f, E, v) = (rename_rule \<pi> f, (rename \<pi>) ` E, \<pi> v)"
 
-fun uncurry3 :: "('w \<Rightarrow> 'x \<Rightarrow> 'y \<Rightarrow> 'z) \<Rightarrow> (('w \<times> 'x \<times> 'y) \<Rightarrow> 'z)" where
-  "uncurry3 f = (\<lambda>(w,x,y). f w x y)"
-
+(* a power measure is symmetric if it is invariant under valid voter permutations *)
+(* a voter permutation is valid if both its input and output are part of the measure's domain *)
 definition pow_symmetry :: bool where 
   "pow_symmetry = (is_symmetry (uncurry3 \<delta>) (Invariance 
-    (action_induced_rel (Bij (UNIV::('v set))) domain (\<lambda> \<pi>. rename_pow \<pi>))))"
+    (action_induced_rel (Bij (UNIV::('v set))) domain (\<lambda> \<pi>. rename_pow \<pi>) \<inter> (domain \<times> domain))))"
 
 text \<open>I-Power Interpretation of Voting Power Measures\<close>
 
@@ -232,7 +234,6 @@ lemma anon_rule_imp_symmetry_pow_const:
   fixes
     f :: "('a, 'v, 'r) Electoral_Module" and
     E :: "('a, 'v) Election set" and
-    X :: "('a, 'v, 'r) Voting_Power_Domain set" and
     v :: 'v and
     w :: 'v 
   assumes 
@@ -244,7 +245,9 @@ lemma anon_rule_imp_symmetry_pow_const:
         f (voters_\<E> e) (alternatives_\<E> e) (profile_\<E> e) = 
         g (voters_\<E> e) (alternatives_\<E> e) (profile_\<E> e))
         \<longrightarrow> \<delta> f Y x = \<delta> g Y x" and
-    valid_v: "(f, E, v) \<in> X"
+    valid_v: "(f, E, v) \<in> domain" and
+     well_formed_counting_domain': 
+      "rename_pow (\<lambda> x :: 'v. (if x = w then v else (if x = v then w else x))) (f, E, v) \<in> domain"
   shows "\<delta> f E v = \<delta> f E w"
 proof -
   (* Generally, the symmetric power of v under f, E equals that of pi(v) under f_pi, pi(E). *)
@@ -264,18 +267,21 @@ proof -
     by metis
   hence
     "((f, E, v), ((rename_rule ?\<pi> f), ((rename ?\<pi>) ` E), (?\<pi> v))) \<in> 
-      action_induced_rel (Bij (UNIV::('v set))) X (\<lambda> \<pi>. rename_pow \<pi>)"
+      action_induced_rel (Bij (UNIV::('v set))) domain (\<lambda> \<pi>. rename_pow \<pi>)"
     using valid_v
     by simp
-  hence eq0: "\<delta> f E v = \<delta> (rename_rule ?\<pi> f) ((rename ?\<pi>) ` E) (?\<pi> v)"
+  moreover have "((f, E, v), ((rename_rule ?\<pi> f), ((rename ?\<pi>) ` E), (?\<pi> v))) \<in> domain \<times> domain"
+    using  well_formed_counting_domain' valid_v
+    unfolding rename_pow.simps
+    by blast
+  ultimately have eq0: "\<delta> f E v = \<delta> (rename_rule ?\<pi> f) ((rename ?\<pi>) ` E) (?\<pi> v)"
     using sym_pow
-    unfolding pow_symmetry_def
-    sorry
+    unfolding pow_symmetry_def is_symmetry.simps
+    by simp
   (* pi(v) = w, E_pi = E and f_pi = f (constrained to E) yields the result 
     given that delta does not care about values of f outside of E. *)
   have 
-    "\<forall> e \<in> E. extensional_continuation (the_inv (rename ?\<pi>)) E e = 
-                (the_inv (rename ?\<pi>)) e"
+    "\<forall> e \<in> E. extensional_continuation (the_inv (rename ?\<pi>)) E e = (the_inv (rename ?\<pi>)) e"
     by simp
   hence 
     "\<forall> e \<in> E. \<exists> x \<in> Bij UNIV. 
@@ -465,19 +471,234 @@ lemma finite: "finite elec"
   using card_elec_ge_0 card_ge_0_finite
   by blast
 
+lemma rename_roundtrip:
+  fixes
+    e :: "('a, 'v) Election" and
+    f :: "('a, 'v, 'r) Electoral_Module" and
+    \<pi> :: "'v \<Rightarrow> 'v"
+  assumes
+    "bij \<pi>"
+  shows
+    "fun\<^sub>\<E> f e = fun\<^sub>\<E> (voting_power_measure.rename_rule \<pi> f) (rename \<pi> e)"
+  sorry
+
+lemma rename_presv_swing:
+  fixes
+      f :: "'v set \<Rightarrow> 'a set \<Rightarrow> ('v \<Rightarrow> ('a \<times> 'a) set) \<Rightarrow> 'c" and
+      E :: "('a, 'v) Election set" and
+      v :: 'v and
+      g :: "'v set \<Rightarrow> 'a set \<Rightarrow> ('v \<Rightarrow> ('a \<times> 'a) set) \<Rightarrow> 'c" and
+      F :: "('a, 'v) Election set" and
+      w :: 'v and
+      \<pi> :: "'v \<Rightarrow> 'v"
+    assumes
+      valid: "(f, E, v) \<in> elec_domain" and
+      valid': "(g, F, w) \<in> elec_domain" and
+      bij: "\<pi> \<in> Bij UNIV" and
+      re: "voting_power_measure.rename_pow \<pi> (f, E, v) = (g, F, w)"
+    shows
+      "(rename \<pi>) ` (banzhaf_swing (f, E, v)) \<subseteq> (banzhaf_swing (g, F, w))"
+proof (unfold image_def, safe)
+    fix
+      A :: "'a set" and
+      B :: "'a set" and
+      V :: "'v set" and
+      W :: "'v set" and
+      p :: "('a, 'v) Profile" and
+      q :: "('a, 'v) Profile"
+    assume
+      sw: "(A, V, p) \<in> banzhaf_swing (f, E, v)" and
+      re2: "(B, W, q) = rename \<pi> (A, V, p)"
+    (* swing votes are mapped to swing votes *)
+    hence "\<exists> e'. ((A, V, p), e') \<in> swing_votes f E v"
+      by simp
+    then obtain e' :: "('a, 'v) Election" where 
+      swing_pair: "((A, V, p), e') \<in> swing_votes f E v"
+      by blast
+    hence ineq: "fun\<^sub>\<E> f (A, V, p) \<noteq> fun\<^sub>\<E> f e'"
+      unfolding swing_votes.simps
+      by blast
+    from swing_pair have eq_voters: "voters_\<E> (A, V, p) = voters_\<E> e'"
+      unfolding swing_votes.simps
+      by blast
+    from swing_pair have coinc: "coincide_except (A, V, p) e' v"
+      unfolding swing_votes.simps
+      by blast
+    (* voter sets after permuting are still equal *)
+    from eq_voters have eq_voters': "voters_\<E> (rename \<pi> (A, V, p)) = voters_\<E> (rename \<pi> e')"
+      by (metis rename.simps split_pairs2 voters_\<E>.simps)
+    (* election outcomes after permuting are still inequal *)
+    from ineq have ineq': 
+      "fun\<^sub>\<E> (voting_power_measure.rename_rule \<pi> f) (rename \<pi> (A, V, p)) 
+        \<noteq> fun\<^sub>\<E> (voting_power_measure.rename_rule \<pi> f) (rename \<pi> e')"
+      using rename_roundtrip bij
+      unfolding Bij_def
+      by (metis Int_Collect)
+    (* profiles after permuting still coincide everywhere except on w *)
+    have "\<forall>x \<in> \<pi> ` V - {w}. the_inv \<pi> x \<in> V - {v}"
+      using re bij
+      unfolding voting_power_measure.rename_pow.simps
+      by (metis (no_types, lifting) Bij_def Diff_iff Int_Collect 
+            bij_betw_def empty_iff imageE insert_iff prod.inject the_inv_f_f)
+    hence inv_set: "\<forall>x \<in> voters_\<E> (A, \<pi> ` V, p \<circ> the_inv \<pi>) - {w}. the_inv \<pi> x \<in> V - {v}"
+      by (metis split_pairs2 voters_\<E>.simps)
+    have
+      "\<forall>e. \<forall>\<sigma>. \<sigma> \<in> Bij UNIV \<longrightarrow> (profile_\<E> (rename \<sigma> e) = (profile_\<E> e) \<circ> (the_inv \<sigma>))"
+      by simp
+    hence 
+      "\<forall>e. \<forall>\<sigma>. \<sigma> \<in> Bij UNIV \<longrightarrow> (\<forall>v \<in> voters_\<E> e. profile_\<E> e v = profile_\<E> (rename \<sigma> e) (\<sigma> v))"
+      by (simp add: Bij_def bij_betw_def the_inv_f_f)
+    hence 
+      "\<forall>e. \<forall>\<sigma>. \<sigma> \<in> Bij UNIV \<longrightarrow> (\<forall>v \<in> voters_\<E> (rename \<sigma> e). 
+        profile_\<E> (rename \<sigma> e) v = profile_\<E> e (the_inv \<sigma> v))"
+      by (simp add: Bij_def bij_betw_def the_inv_f_f)
+    hence
+      "\<forall>x \<in> voters_\<E> (A, \<pi> ` V, p \<circ> the_inv \<pi>) - {w}. 
+        profile_\<E> (rename \<pi> e') x = profile_\<E> e' (the_inv \<pi> x)"
+      using bij
+      by (metis Diff_iff eq_voters' rename.simps)
+    moreover have
+      "\<forall>x \<in> voters_\<E> (A, \<pi> ` V, p \<circ> the_inv \<pi>) - {w}. 
+        profile_\<E> (A, \<pi> ` V, p \<circ> the_inv \<pi>) x = p (the_inv \<pi> x)"
+      by simp
+    ultimately have coinc': "coincide_except (rename \<pi> (A, V, p)) (rename \<pi> e') w"
+      using coinc inv_set
+      unfolding coincide_except.simps rename.simps
+      by (metis profile_\<E>.simps split_pairs2 voters_\<E>.simps)
+    have valid: "((A, V, p), e') \<in> E \<times> E"
+      using swing_pair
+      unfolding banzhaf_swing.simps swing_votes.simps counting_domain.simps
+      by blast
+    hence valid': "((rename \<pi> (A, V, p)), (rename \<pi> e')) \<in> (rename \<pi> ` E) \<times> (rename \<pi> ` E)"
+      by blast
+    from valid' coinc' ineq' eq_voters' have
+      "((rename \<pi> (A, V, p)), (rename \<pi> e')) \<in> 
+          swing_votes (voting_power_measure.rename_rule \<pi> f) (rename \<pi> ` E) (\<pi> v)"
+      using re
+      unfolding swing_votes.simps voting_power_measure.rename_pow.simps
+      by blast
+    thus "(B, W, q) \<in> banzhaf_swing (g, F, w)"
+      using re re2
+      unfolding banzhaf_swing.simps voting_power_measure.rename_pow.simps
+      by (metis (no_types, lifting) counting_domain.simps fst_conv left.simps 
+            mem_Collect_eq rule.simps snd_conv voter.simps)
+  qed
+
 (* Elections on a fixed candidate and voter set form 
     a probability space using the uniform distribution*)
-interpretation fixed_elec_uniform_dist: prob_space "uniform_count_measure elec"
+interpretation fixed_elec_uniform_distr: prob_space "uniform_count_measure elec"
   using finite non_empty 
   by (intro prob_space_uniform_count_measure)
 
 interpretation fixed_banzhaf: banzhaf_index banzhaf_count elec_domain banzhaf_swing
 proof (unfold_locales)
   show "voting_power_measure.pow_symmetry banzhaf_count elec_domain" 
-    sorry
+  proof (unfold voting_power_measure.pow_symmetry_def, simp del: uncurry3.simps, safe)
+    fix
+      f :: "'v set \<Rightarrow> 'a set \<Rightarrow> ('v \<Rightarrow> ('a \<times> 'a) set) \<Rightarrow> 'c" and
+      E :: "('a, 'v) Election set" and
+      v :: 'v and
+      g :: "'v set \<Rightarrow> 'a set \<Rightarrow> ('v \<Rightarrow> ('a \<times> 'a) set) \<Rightarrow> 'c" and
+      F :: "('a, 'v) Election set" and
+      w :: 'v and
+      \<pi> :: "'v \<Rightarrow> 'v"
+    assume
+      valid: "(f, E, v) \<in> elec_domain" and
+      valid': "(g, F, w) \<in> elec_domain" and
+      bij: "\<pi> \<in> Bij UNIV" and
+      re: "voting_power_measure.rename_pow \<pi> (f, E, v) = (g, F, w)"
+    have "inj_on (rename \<pi>) E"
+      using Bij_def bij extensional_UNIV inf_top_left injD inj_onI mem_Collect_eq rename_inj
+      by (metis (mono_tags, lifting))
+    moreover have "(rename \<pi>) ` E = F"
+      using re voting_power_measure.rename_pow.simps
+      by (metis prod.inject)
+    ultimately have "bij_betw (rename \<pi>) E F"
+      unfolding bij_betw_def
+      by blast
+    (* equal amounts of votes in both elections *)
+    hence card_eq: "card E = card F"
+      using bij_betw_same_card 
+      by blast
+    have bij_inv: "the_inv \<pi> \<in> Bij UNIV"
+      using bij
+      by (simp add: Bij_def bij_betw_the_inv_into)
+    moreover have inverse: "(rename \<pi>) \<circ> (rename (the_inv \<pi>)) = id"
+      using bij_inv bij
+      by (metis (no_types, lifting) Bij_def eq_id_iff extensional_UNIV inf_top_left
+            left_right_inverse_eq mem_Collect_eq rename_inj rename_inv_commute the_inv_f_o_f_id)
+    ultimately have "voting_power_measure.rename_pow (the_inv \<pi>) (g, F, w) = (f, E, v)"
+      using re bij
+      unfolding voting_power_measure.rename_pow.simps voting_power_measure.rename_rule.simps
+      sorry
+    with bij_inv have subset: 
+      "rename (the_inv \<pi>) ` banzhaf_swing (g, F, w) \<subseteq> banzhaf_swing (f, E, v)"
+      using valid' valid rename_presv_swing[of g F w f E v "the_inv \<pi>"]
+      by blast
+    with inverse have
+      "(rename \<pi>) ` (rename (the_inv \<pi>)) ` banzhaf_swing (g, F, w) = banzhaf_swing (g, F, w)"
+      by (metis (no_types, lifting) bij_betw_id bij_betw_imp_surj_on image_comp)
+    with subset have "(banzhaf_swing (g, F, w)) \<subseteq> (rename \<pi>) ` (banzhaf_swing (f, E, v))"
+      by (metis image_mono)
+    moreover have "(rename \<pi>) ` (banzhaf_swing (f, E, v)) \<subseteq> (banzhaf_swing (g, F, w))"
+      using valid valid' bij re rename_presv_swing[of f E v g F w \<pi>]
+      by blast
+    ultimately have "(banzhaf_swing (g, F, w)) = (rename \<pi>) ` (banzhaf_swing (f, E, v))"
+      by blast
+    moreover have "inj_on (rename \<pi>) (banzhaf_swing (f, E, v))"
+      using Bij_def bij extensional_UNIV inf_top_left injD inj_onI mem_Collect_eq rename_inj
+      by (metis (mono_tags, lifting))
+    (* equal amounts of swing votes in both elections *)
+    ultimately have "bij_betw (rename \<pi>) (banzhaf_swing (f, E, v)) (banzhaf_swing (g, F, w))"
+      unfolding bij_betw_def
+      by blast
+    hence swing_eq: "card (banzhaf_swing (f, E, v)) = card (banzhaf_swing (g, F, w))"
+      using bij_betw_same_card 
+      by blast
+    have "uncurry3 banzhaf_count (f, E, v) = banzhaf_count f E v"
+      using uncurry3.simps[of banzhaf_count]
+      by (metis case_prod_conv)
+    also have "banzhaf_count f E v = (1/((card E)::real)) * (card (banzhaf_swing (f, E, v)))"
+      by simp
+    also have "(1/((card E)::real)) * (card (banzhaf_swing (f, E, v)))
+      = (1/((card F)::real)) * (card (banzhaf_swing (g, F, w)))"
+      using card_eq swing_eq
+      by simp
+    also have "(1/((card F)::real)) * (card (banzhaf_swing (g, F, w))) = banzhaf_count g F w"
+      by simp
+    also have "banzhaf_count g F w = uncurry3 banzhaf_count (g, F, w)"
+      by simp
+    finally show 
+      "uncurry3 banzhaf_count (f, E, v) = uncurry3 banzhaf_count (g, F, w)"
+      by simp
+  qed
 next
   show "voting_power_measure.ipower banzhaf_count elec_domain uniform_elections banzhaf_swing"
-    sorry
+ proof (unfold voting_power_measure.ipower_def, safe)
+    fix
+      f :: "'v set \<Rightarrow> 'a set \<Rightarrow> ('v \<Rightarrow> ('a \<times> 'a) set) \<Rightarrow> 'c" and
+      E :: "('a, 'v) Election set" and
+      v :: 'v
+    assume
+      valid: "(f, E, v) \<in> elec_domain"
+    thus "prob_space (uniform_elections (f, E, v))"
+      sorry
+  next
+    fix
+      f :: "'v set \<Rightarrow> 'a set \<Rightarrow> ('v \<Rightarrow> ('a \<times> 'a) set) \<Rightarrow> 'c" and
+      E :: "('a, 'v) Election set" and
+      v :: 'v
+    assume
+      valid: "(f, E, v) \<in> elec_domain"
+    hence
+      "e2ennreal (banzhaf_count f E v) = 
+        emeasure (uniform_elections (f, E, v)) (banzhaf_swing (f, E, v))"
+      sorry
+    thus 
+      "e2ennreal (banzhaf_count (rule (f, E, v)) (counting_domain (f, E, v)) (voter (f, E, v))) 
+        = emeasure (uniform_elections (f, E, v)) (banzhaf_swing (f, E, v))"
+      by (metis counting_domain.simps rule.simps split_pairs2 voter.simps)
+  qed
 qed
   
 end
