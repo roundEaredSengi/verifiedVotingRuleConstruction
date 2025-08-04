@@ -480,7 +480,17 @@ lemma rename_roundtrip:
     "bij \<pi>"
   shows
     "fun\<^sub>\<E> f e = fun\<^sub>\<E> (voting_power_measure.rename_rule \<pi> f) (rename \<pi> e)"
-  sorry
+proof -
+  have "fun\<^sub>\<E> (voting_power_measure.rename_rule \<pi> f) (rename \<pi> e) = 
+        fun\<^sub>\<E> f (the_inv (rename \<pi>) (rename \<pi> e))"
+    unfolding voting_power_measure.rename_rule.simps
+    by simp
+  also have "fun\<^sub>\<E> f (the_inv (rename \<pi>) (rename \<pi> e)) = fun\<^sub>\<E> f e"
+    using assms
+    by (simp add: rename_inj the_inv_f_f)
+  finally show ?thesis
+    by simp
+qed
 
 lemma rename_presv_swing:
   fixes
@@ -682,7 +692,8 @@ next
     assume
       valid: "(f, E, v) \<in> elec_domain"
     thus "prob_space (uniform_elections (f, E, v))"
-      sorry
+      unfolding uniform_elections_def
+      by (simp add: elec_domain_def fixed_elec_uniform_distr.prob_space_axioms)
   next
     fix
       f :: "'v set \<Rightarrow> 'a set \<Rightarrow> ('v \<Rightarrow> ('a \<times> 'a) set) \<Rightarrow> 'c" and
@@ -690,10 +701,19 @@ next
       v :: 'v
     assume
       valid: "(f, E, v) \<in> elec_domain"
-    hence
+    hence "finite E"
+      unfolding elec_domain_def
+      using finVot finAlt elec_def local.finite 
+      by simp
+    moreover have "banzhaf_swing (f, E, v) \<subseteq> E"
+      by simp
+    ultimately have
       "e2ennreal (banzhaf_count f E v) = 
         emeasure (uniform_elections (f, E, v)) (banzhaf_swing (f, E, v))"
-      sorry
+      unfolding uniform_elections_def banzhaf_count.simps
+      using emeasure_uniform_count_measure[of E "banzhaf_swing (f, E, v)"]
+      by (metis counting_domain.simps divide_inverse e2ennreal_ereal 
+                fst_conv inverse_eq_divide mult.commute snd_conv)
     thus 
       "e2ennreal (banzhaf_count (rule (f, E, v)) (counting_domain (f, E, v)) (voter (f, E, v))) 
         = emeasure (uniform_elections (f, E, v)) (banzhaf_swing (f, E, v))"
