@@ -7,12 +7,19 @@ theory Voting_Power
 
 begin
 
-subsection \<open>Auxiliary Lemmas\<close>
+subsection \<open>Auxiliary Lemmas and Definitions\<close>
+
+fun uncurry3 :: "('w \<Rightarrow> 'x \<Rightarrow> 'y \<Rightarrow> 'z) \<Rightarrow> (('w \<times> 'x \<times> 'y) \<Rightarrow> 'z)" where
+  "uncurry3 f = (\<lambda>(w,x,y). f w x y)"
 
 fun swap_voters :: "'v \<Rightarrow> 'v \<Rightarrow> ('a, 'v) Election \<Rightarrow> ('a, 'v) Election" where
   "swap_voters v w e = 
     (let \<pi> = (\<lambda>x::'v. (if x = w then v else (if x = v then w else x))) in
       rename \<pi> e)"
+
+fun coincide_except :: "('a, 'v) Election \<Rightarrow> ('a, 'v) Election \<Rightarrow> 'v \<Rightarrow> bool" where
+  "coincide_except e1 e2 v = 
+      (\<forall> w \<in> (voters_\<E> e1) - {v}. profile_\<E> e1 w = profile_\<E> e2 w)"
 
 lemma rename_inv_commute:
   fixes
@@ -170,7 +177,7 @@ next
     by argo
 qed
 
-subsection \<open>Definitions\<close>
+subsection \<open>Types\<close>
 
 type_synonym ('a, 'v, 'r) Swing_Weight =
   "('a, 'v, 'r) Electoral_Module \<Rightarrow> ('a, 'v) Election \<Rightarrow> 'v \<Rightarrow> ereal"
@@ -178,6 +185,9 @@ type_synonym ('a, 'v, 'r) Swing_Weight =
 type_synonym ('a, 'v, 'r) Voting_Power =
   "('a, 'v, 'r) Electoral_Module \<Rightarrow> ('a, 'v) Election set \<Rightarrow> 'v \<Rightarrow> ereal"
 
+(* A voting power index is defined on a set of tupes of voting rules (electoral modules) and voters. 
+The domain of a voting rule (those ballot configurations relevant to the power index) 
+is not necessarily total, so it is given as another input in this implementation. *)
 type_synonym ('a, 'v, 'r) Voting_Power_Domain =
   "('a, 'v, 'r) Electoral_Module \<times> ('a, 'v) Election set \<times> 'v"
 
@@ -190,10 +200,7 @@ fun counting_domain :: "('a, 'v, 'r) Voting_Power_Domain \<Rightarrow> ('a, 'v) 
 fun voter :: "('a, 'v, 'r) Voting_Power_Domain \<Rightarrow> 'v" where
   "voter X = snd (snd X)"
 
-subsection \<open>Abstract Voting Power Indices and their Characterisations\<close>
-
-fun uncurry3 :: "('w \<Rightarrow> 'x \<Rightarrow> 'y \<Rightarrow> 'z) \<Rightarrow> (('w \<times> 'x \<times> 'y) \<Rightarrow> 'z)" where
-  "uncurry3 f = (\<lambda>(w,x,y). f w x y)"
+subsection \<open>Abstract Voting Power Indices (Locale)\<close>
 
 locale voting_power_measure =
   fixes 
@@ -204,7 +211,7 @@ locale voting_power_measure =
         the voting rule, the voter as well as the domain of valid profiles/elections to consider *)
 begin
 
-text \<open>Symmetry of Voting Power Measures\<close>
+subsection \<open>Symmetry of Abstract Voting Power Measures\<close>
 
 fun rename_rule :: 
   "('v \<Rightarrow> 'v) \<Rightarrow> ('a, 'v, 'r) Electoral_Module \<Rightarrow> ('a, 'v, 'r) Electoral_Module" where
@@ -220,7 +227,7 @@ definition pow_symmetry :: bool where
   "pow_symmetry = (is_symmetry (uncurry3 \<delta>) (Invariance 
     (action_induced_rel (Bij (UNIV::('v set))) domain (\<lambda> \<pi>. rename_pow \<pi>) \<inter> (domain \<times> domain))))"
 
-text \<open>I-Power Interpretation of Voting Power Measures\<close>
+subsection \<open>I-Power Interpretation of Abstract Voting Power Measures\<close>
 
 definition ipower :: 
   "(('a, 'v, 'r) Voting_Power_Domain \<Rightarrow> ('a, 'v) Election measure) \<Rightarrow>
@@ -229,6 +236,8 @@ definition ipower ::
   where 
     "ipower M event = (\<forall> X \<in> domain. prob_space (M X) \<and>
       \<delta> (rule X) (counting_domain X) (voter X) = (emeasure (M X)) (event X))"
+
+subsection \<open>Relations between Voting Power and other Axiomatic Properties\<close>
 
 lemma anon_rule_imp_symmetry_pow_const:
   fixes
@@ -321,6 +330,8 @@ qed
 
 end
 
+subsection \<open>Characteristics of Specific Power Indices (Sublocales)\<close>
+
 definition uniform_elections :: "('b, 'a, 'c) Voting_Power_Domain \<Rightarrow> ('b, 'a) Election measure"
   where "uniform_elections X = uniform_count_measure (counting_domain X)"
 
@@ -340,11 +351,7 @@ end
 sublocale banzhaf_index \<subseteq> voting_power_measure
 proof - qed
 
-subsection \<open>Concrete Voting Power Indices\<close>
-
-fun coincide_except :: "('a, 'v) Election \<Rightarrow> ('a, 'v) Election \<Rightarrow> 'v \<Rightarrow> bool" where
-  "coincide_except e1 e2 v = 
-      (\<forall> w \<in> (voters_\<E> e1) - {v}. profile_\<E> e1 w = profile_\<E> e2 w)"
+subsection \<open>Concrete Voting Power Indices (Locale Instantiations)\<close>
 
 (* classical swing votes *)
 fun swing_votes :: 
@@ -600,6 +607,7 @@ interpretation fixed_elec_uniform_distr: prob_space "uniform_count_measure elec"
   using finite non_empty 
   by (intro prob_space_uniform_count_measure)
 
+(* The concrete function banzhaf_count satisfies all abstract characteristics of a Banzhaf index. *)
 interpretation fixed_banzhaf: banzhaf_index banzhaf_count elec_domain banzhaf_swing
 proof (unfold_locales)
   show "voting_power_measure.pow_symmetry banzhaf_count elec_domain" 
