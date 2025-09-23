@@ -1,0 +1,17 @@
+section \<open>Definition of (Voting Power) Extensions\<close>
+
+theory Extension
+  imports Voting_Power
+
+begin
+
+locale power_isomorphism
+  fixes
+  assumes
+
+begin
+
+end
+
+
+end

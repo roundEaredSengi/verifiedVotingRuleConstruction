@@ -185,9 +185,12 @@ type_synonym ('a, 'v, 'r) Swing_Weight =
 type_synonym ('a, 'v, 'r) Voting_Power =
   "('a, 'v, 'r) Electoral_Module \<Rightarrow> ('a, 'v) Election set \<Rightarrow> 'v \<Rightarrow> ereal"
 
-(* A voting power index is defined on a set of tupes of voting rules (electoral modules) and voters. 
-The domain of a voting rule (those ballot configurations relevant to the power index) 
-is not necessarily total, so it is given as another input in this implementation. *)
+text \<open>
+  A voting power index is defined on tuples of voting rules (electoral modules) and voters. 
+  The domain of a voting rule (those ballot configurations relevant to the power index) 
+  is not necessarily the complete Election type universe, so it is instead given as another 
+  input in this implementation.
+\<close>
 type_synonym ('a, 'v, 'r) Voting_Power_Domain =
   "('a, 'v, 'r) Electoral_Module \<times> ('a, 'v) Election set \<times> 'v"
 
@@ -202,6 +205,12 @@ fun voter :: "('a, 'v, 'r) Voting_Power_Domain \<Rightarrow> 'v" where
 
 subsection \<open>Abstract Voting Power Indices (Locale)\<close>
 
+type_synonym ('a, 'v, 'r) Voting_Power_Axiom = 
+  "('a, 'v, 'r) Voting_Power \<Rightarrow> ('a, 'v, 'r) Voting_Power_Domain set \<Rightarrow> bool"
+
+fun null_player :: "('a, 'v, 'r) Voting_Power_Axiom" where
+  "null_player \<delta> X = True" (* TODO *)
+
 locale voting_power_measure =
   fixes 
     \<delta> :: "('a, 'v, 'r) Voting_Power" and
@@ -210,6 +219,9 @@ locale voting_power_measure =
     (* every element defines a concrete configuration in which to determine a voter's power:
         the voting rule, the voter as well as the domain of valid profiles/elections to consider *)
 begin
+
+(* TODO define VP axioms outside of the locale in a manner that takes voting power index + domain
+as input instead of as parameters? Either that or change the Extension.thy structure completely *)
 
 subsection \<open>Symmetry of Abstract Voting Power Measures\<close>
 

@@ -1,25 +1,27 @@
-section \<open>Cooperative and Simple Games\<close>
+section \<open>Cooperative Games\<close>
 
 theory Cooperative_Game
   imports HOL.Real
 
 begin
 
-subsection \<open>Definition\<close>
+(* TODO: use this theory for sth. *)
 
-type_synonym 'v Cooperative_Game = "'v set \<times> ('v \<Rightarrow> real)"
+subsection \<open>Cooperative Games\<close> 
+
+type_synonym 'v Cooperative_Game = "'v set \<times> ('v set \<Rightarrow> real)"
 
 fun players :: "'v Cooperative_Game \<Rightarrow> 'v set" where
   "players G = fst G"
 
-fun payoff :: "'v Cooperative_Game \<Rightarrow> ('v \<Rightarrow> real)" where
+fun payoff :: "'v Cooperative_Game \<Rightarrow> ('v set \<Rightarrow> real)" where
   "payoff G = snd G"
 
 fun restricted_game :: "'v set \<Rightarrow> 'v Cooperative_Game \<Rightarrow> 'v Cooperative_Game" where
   "restricted_game V G = (V, payoff G)" 
 
 fun total_payoff :: "'v Cooperative_Game \<Rightarrow> real" where
-  "total_payoff G = (\<Sum> v :: 'v \<in> players G. payoff G v)"
+  "total_payoff G = (\<Sum> v :: 'v \<in> players G. payoff G {v})"
 
 fun partial_payoff :: "'v Cooperative_Game \<Rightarrow>'v set \<Rightarrow> real" where
   "partial_payoff G X = total_payoff (restricted_game X G)"
@@ -41,7 +43,7 @@ fun simple_voting_game :: "'v Cooperative_Game \<Rightarrow> bool" where
 abbreviation num_players :: "'v Cooperative_Game \<Rightarrow> nat" where
   "num_players G \<equiv> card (players G)"
 
-subsection \<open>Classical Power Indices\<close>
+subsection \<open>Classical Power Indices as Payoff Shares\<close>
 
 fun swing_votes :: "'v Cooperative_Game \<Rightarrow> 'v \<Rightarrow> ('v set) set" where
   "swing_votes G v = 
