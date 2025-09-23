@@ -194,6 +194,17 @@ text \<open>
 type_synonym ('a, 'v, 'r) Voting_Power_Domain =
   "('a, 'v, 'r) Electoral_Module \<times> ('a, 'v) Election set \<times> 'v"
 
+type_synonym ('a, 'v, 'r) Uncurried_Voting_Power =
+  "('a, 'v, 'r) Voting_Power_Domain \<Rightarrow> ereal"
+
+(* TODO use dedicated type morphism constructs for the next two functions? *)
+
+fun curry_power :: "('a, 'v, 'r) Uncurried_Voting_Power \<Rightarrow> ('a, 'v, 'r) Voting_Power" where
+  "curry_power \<delta> = (\<lambda>f E v. \<delta> (f, E, v))"
+
+fun uncurry_power :: "('a, 'v, 'r) Voting_Power \<Rightarrow> ('a, 'v, 'r) Uncurried_Voting_Power" where
+  "uncurry_power \<delta> = (\<lambda>(f, E, v). \<delta> f E v)"
+
 fun rule :: "('a, 'v, 'r) Voting_Power_Domain \<Rightarrow> ('a, 'v, 'r) Electoral_Module" where
   "rule X = fst X"
 
@@ -206,7 +217,7 @@ fun voter :: "('a, 'v, 'r) Voting_Power_Domain \<Rightarrow> 'v" where
 subsection \<open>Abstract Voting Power Indices (Locale)\<close>
 
 type_synonym ('a, 'v, 'r) Voting_Power_Axiom = 
-  "('a, 'v, 'r) Voting_Power \<Rightarrow> ('a, 'v, 'r) Voting_Power_Domain set \<Rightarrow> bool"
+  "('a, 'v, 'r) Uncurried_Voting_Power \<Rightarrow> ('a, 'v, 'r) Voting_Power_Domain set \<Rightarrow> bool"
 
 fun null_player :: "('a, 'v, 'r) Voting_Power_Axiom" where
   "null_player \<delta> X = True" (* TODO *)

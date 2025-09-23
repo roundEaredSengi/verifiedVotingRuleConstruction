@@ -89,10 +89,9 @@ locale voting_model_isomorphism = model_isomorphism iso_models
 
 begin
 
-(* lemma iso_null_player:
-  "iso_predicates
-    (Voting_Power.null_player::(('a, 'v, 'r) Voting_Power_Axiom))
-    (Simple_Voting_Game.null_player::('v SVG_Voting_Power_Axiom))" *)
+lemma iso_null_player:
+  "iso_predicates Voting_Power.null_player Simple_Voting_Game.null_player"
+  sorry (* TODO needs more assumptions about iso. models *)
 
 end
 

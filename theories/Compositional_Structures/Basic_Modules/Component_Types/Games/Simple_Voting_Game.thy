@@ -2,6 +2,7 @@ section \<open>Simple Voting Games\<close>
 
 theory Simple_Voting_Game
   imports Cooperative_Game
+          "HOL-Probability.Probability_Measure"
 
 begin
 
@@ -29,7 +30,9 @@ fun player :: "'v SVG_Voting_Power_Domain \<Rightarrow> 'v" where
 fun uncurry2 :: "('x \<Rightarrow> 'y \<Rightarrow> 'z) \<Rightarrow> (('x \<times> 'y) \<Rightarrow> 'z)" where
   "uncurry2 f = (\<lambda>(x,y). f x y)"
 
-type_synonym 'v SVG_Voting_Power = "'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> real"
+type_synonym 'v SVG_Voting_Power = "'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> ereal"
+
+type_synonym 'v Uncurried_SVG_Voting_Power = "'v SVG_Voting_Power_Domain \<Rightarrow> ereal"
 
 subsection \<open>Classical Voting Power Indices\<close>
 
@@ -38,12 +41,12 @@ subsection \<open>Classical Voting Power Indices\<close>
 subsection \<open>Voting Power Axioms on Simple Voting Games\<close>
 
 type_synonym 'v SVG_Voting_Power_Axiom = 
-  "'v SVG_Voting_Power \<Rightarrow> 'v SVG_Voting_Power_Domain set \<Rightarrow> bool"
+  "'v Uncurried_SVG_Voting_Power \<Rightarrow> 'v SVG_Voting_Power_Domain set \<Rightarrow> bool"
 
 fun np :: "'v SVG_Voting_Power_Domain \<Rightarrow> bool" where
   "np G = True" (* TODO: player G is in no minimal winning coalition in game G *)
 
 fun null_player :: "'v SVG_Voting_Power_Axiom" where
-  "null_player \<delta> \<G> = (\<forall> G \<in> \<G>. np G \<longrightarrow> uncurry2 \<delta> G = 0)" (* TODO *)
+  "null_player \<delta> \<G> = (\<forall> G \<in> \<G>. np G \<longrightarrow> \<delta> G = 0)" (* TODO *)
 
 end
