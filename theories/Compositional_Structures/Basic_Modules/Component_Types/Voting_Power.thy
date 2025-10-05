@@ -1,8 +1,8 @@
 section \<open>Voting Power\<close>
 
 theory Voting_Power
-  imports Electoral_Module
-          Distance    
+  imports Voting_Models
+          Distance
           "HOL-Probability.Probability_Measure"
 
 begin
