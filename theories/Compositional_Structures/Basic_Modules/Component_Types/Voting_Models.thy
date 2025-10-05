@@ -6,12 +6,17 @@ theory Voting_Models
 
 begin
 
+subsection \<open>Auxiliary Definitions\<close>
+
+fun swap_args :: "('s \<Rightarrow> 't \<Rightarrow> 'r) \<Rightarrow> ('t \<Rightarrow> 's \<Rightarrow> 'r)" where
+  "swap_args f = (\<lambda>t s. f s t)"
+
 subsection \<open>Voting Models\<close>
 
 locale voting_model = 
   fixes 
-    voters :: "'v set" and
-    instances :: "'x set"
+    \<V> :: "'v set" and
+    \<M> :: "'x set"
   (* No assumptions on this abstraction level? *)
   (* TODO using the term voting model both for single instances and sets thereof... *)
 
@@ -43,23 +48,23 @@ text \<open>any model from the first set has a corresponding (isomorphic) model 
 fun ex_iso_elts :: "('s \<Rightarrow> 't \<Rightarrow> bool) \<Rightarrow> 's set \<Rightarrow> 't set \<Rightarrow> bool" where
   "ex_iso_elts iso_models S T = (\<forall> s \<in> S. \<exists> t \<in> T. iso_models s t)"
 
-fun swap_args :: "('s \<Rightarrow> 't \<Rightarrow> 'r) \<Rightarrow> ('t \<Rightarrow> 's \<Rightarrow> 'r)" where
-  "swap_args f = (\<lambda>t s. f s t)"
+(* TODO distinguish from model_isomorphism *)
+locale model_comparison = 
+  m1: voting_model \<V> \<M> + m2: voting_model \<V> \<M>'
+  for \<V> :: "'v set" and \<M> :: "'x set" and \<M>' :: "'y set" +
+  fixes
+      isomorphic :: "'x \<Rightarrow> 'y \<Rightarrow> bool"
 
-text 
-\<open>
+text \<open>
 two models are isomorphic if:
   - isomorphic models can be found either in both or none of the sets
   - for every element of the first set, there is an iso. element of the second set and vice versa  
 \<close>  
-locale model_isomorphism = m1: voting_model \<V> \<M> + m2: voting_model \<V> \<M>'
-  for \<V> :: "'v set" and \<M> :: "'x set" and \<M>' :: "'y set" +
-  fixes
-    isomorphic :: "'x \<Rightarrow> 'y \<Rightarrow> bool"
+locale model_isomorphism = model_comparison \<V> \<M> \<M>' isomorphic
+  for \<V> :: "'v set" and \<M> :: "'x set" and \<M>' :: "'y set" and isomorphic :: "'x \<Rightarrow> 'y \<Rightarrow> bool" +
   assumes
     iso_occurrence: "only_iso_elts isomorphic \<M> \<M>'" and
     correspondence: "ex_iso_elts isomorphic \<M> \<M>' \<and> ex_iso_elts (swap_args isomorphic) \<M>' \<M>"
-
 begin
 
 text 

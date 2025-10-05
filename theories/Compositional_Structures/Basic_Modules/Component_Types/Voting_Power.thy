@@ -177,13 +177,78 @@ next
     by argo
 qed
 
-subsection \<open>Types\<close>
+subsection \<open>Voting Power\<close>
+
+type_synonym ('v, 'x) Voting_Power = "'x \<Rightarrow> 'v \<Rightarrow> real"
+
+record ('v, 'x) abstract_notions =
+  has_swing_vote :: "'x \<Rightarrow> 'v \<Rightarrow> bool"
+  rename_instance :: "('v \<Rightarrow> 'v) \<Rightarrow> 'x \<Rightarrow> 'x"
+
+locale voting_power = voting_model \<V> \<M>
+  for \<V> :: "'v set" and \<M> :: "'x set" +
+  fixes
+    \<delta> :: "('v, 'x) Voting_Power" and
+    AN :: "('v, 'x) abstract_notions" (structure) 
+begin
+
+subsection \<open>(Abstract) Voting Power Axioms\<close>
+
+definition null_player :: "bool" where
+  "null_player = (\<forall> m \<in> \<M>. \<forall> v \<in> \<V>. \<not>(has_swing_vote AN m v) \<longrightarrow> \<delta> m v = 0)"
+
+definition non_negativity :: "bool" where
+  "non_negativity = (\<forall> m \<in> \<M>. \<forall> v \<in> \<V>. \<delta> m v \<ge> 0)"
+
+definition symmetry :: "bool" where
+  "symmetry = (\<forall> \<pi> \<in> Bij \<V>. \<forall> m \<in> \<M>. \<forall> v \<in> \<V>. \<delta> m v = \<delta> (rename_instance AN \<pi> m) (\<pi> v))"
+  (* TODO relate with is_symmetry def *)
+
+end
+
+subsection \<open>Specific Voting Power Indices\<close>
+
+locale banzhaf_index = voting_power \<V> \<M> \<delta> 
+  for \<V> :: "'v set" and \<M> :: "'x set" and \<delta> :: "('v, 'x) Voting_Power" +
+  fixes
+    banzhaf_count :: "'x \<Rightarrow> 'v \<Rightarrow> nat"
+  assumes
+    "null_player" and "symmetry" and "non_negativity"
+    "TRUE" (* TODO *)
+begin
+  
+end
+  
+subsection \<open>Equivalence of Voting Power Indices Defined on Different Models\<close>
+
+locale power_equivalence = 
+  model_isomorphism \<V> \<M> \<M>' isom + 
+  v1: voting_power \<V> \<M> \<delta> AN + 
+  v2: voting_power \<V> \<M>' \<delta>' AN'
+  for \<V> :: "'v set" and \<M> :: "'x set" and \<M>' :: "'y set" and isom :: "'x \<Rightarrow> 'y \<Rightarrow> bool"
+    and AN :: "('v, 'x) abstract_notions" and AN' :: "('v, 'y) abstract_notions"
+    and \<delta> :: "('v, 'x) Voting_Power" and \<delta>' :: "('v, 'y) Voting_Power" +
+  assumes
+    coincide: "\<forall> m \<in> \<M>. \<forall> m' \<in> \<M>'. \<forall> v \<in> \<V>. isom m m' \<longrightarrow> \<delta> m v = \<delta>' m' v"
+
+context model_comparison
+begin
+
+fun equiv_pow_props :: 
+  "(('v, 'x) Voting_Power \<Rightarrow> bool) \<Rightarrow> (('v, 'y) Voting_Power \<Rightarrow> bool) \<Rightarrow> bool" where
+  "equiv_pow_props \<phi> \<phi>' = 
+    (\<forall> \<delta> \<delta>'. (power_equivalence \<V> \<M> \<M>' isomorphic \<delta> \<delta>') \<longrightarrow> (\<phi> \<delta> \<longleftrightarrow> \<phi>' \<delta>'))"
+
+end
+
+subsection \<open>(Temporary) Dump\<close>
+
+end
+
+(*
 
 type_synonym ('a, 'v, 'r) Swing_Weight =
   "('a, 'v, 'r) Electoral_Module \<Rightarrow> ('a, 'v) Election \<Rightarrow> 'v \<Rightarrow> ereal"
-
-type_synonym ('a, 'v, 'r) Voting_Power =
-  "('a, 'v, 'r) Electoral_Module \<Rightarrow> ('a, 'v) Election set \<Rightarrow> 'v \<Rightarrow> ereal"
 
 text \<open>
   A voting power index is defined on tuples of voting rules (electoral modules) and voters. 
@@ -196,14 +261,6 @@ type_synonym ('a, 'v, 'r) Voting_Power_Domain =
 
 type_synonym ('a, 'v, 'r) Uncurried_Voting_Power =
   "('a, 'v, 'r) Voting_Power_Domain \<Rightarrow> ereal"
-
-(* TODO use dedicated type morphism constructs for the next two functions? *)
-
-fun curry_power :: "('a, 'v, 'r) Uncurried_Voting_Power \<Rightarrow> ('a, 'v, 'r) Voting_Power" where
-  "curry_power \<delta> = (\<lambda>f E v. \<delta> (f, E, v))"
-
-fun uncurry_power :: "('a, 'v, 'r) Voting_Power \<Rightarrow> ('a, 'v, 'r) Uncurried_Voting_Power" where
-  "uncurry_power \<delta> = (\<lambda>(f, E, v). \<delta> f E v)"
 
 fun rule :: "('a, 'v, 'r) Voting_Power_Domain \<Rightarrow> ('a, 'v, 'r) Electoral_Module" where
   "rule X = fst X"
@@ -219,18 +276,6 @@ subsection \<open>Abstract Voting Power Indices (Locale)\<close>
 type_synonym ('a, 'v, 'r) Voting_Power_Axiom = 
   "('a, 'v, 'r) Uncurried_Voting_Power \<Rightarrow> ('a, 'v, 'r) Voting_Power_Domain set \<Rightarrow> bool"
 
-fun null_player :: "('a, 'v, 'r) Voting_Power_Axiom" where
-  "null_player \<delta> X = True" (* TODO *)
-
-locale voting_power_measure =
-  fixes 
-    \<delta> :: "('a, 'v, 'r) Voting_Power" and
-    domain :: "('a, 'v, 'r) Voting_Power_Domain set" 
-    (* domain on which delta operates *)
-    (* every element defines a concrete configuration in which to determine a voter's power:
-        the voting rule, the voter as well as the domain of valid profiles/elections to consider *)
-begin
-
 (* TODO define VP axioms outside of the locale in a manner that takes voting power index + domain
 as input instead of as parameters? Either that or change the Extension.thy structure completely *)
 
@@ -244,21 +289,15 @@ fun rename_pow ::
   "('v \<Rightarrow> 'v) \<Rightarrow> (('a, 'v, 'r) Voting_Power_Domain \<Rightarrow> ('a, 'v, 'r) Voting_Power_Domain)" where
   "rename_pow \<pi> (f, E, v) = (rename_rule \<pi> f, (rename \<pi>) ` E, \<pi> v)"
 
-(* a power measure is symmetric if it is invariant under valid voter permutations *)
-(* a voter permutation is valid if both its input and output are part of the measure's domain *)
-definition pow_symmetry :: bool where 
-  "pow_symmetry = (is_symmetry (uncurry3 \<delta>) (Invariance 
-    (action_induced_rel (Bij (UNIV::('v set))) domain (\<lambda> \<pi>. rename_pow \<pi>) \<inter> (domain \<times> domain))))"
-
 subsection \<open>I-Power Interpretation of Abstract Voting Power Measures\<close>
 
-definition ipower :: 
+(* definition ipower :: 
   "(('a, 'v, 'r) Voting_Power_Domain \<Rightarrow> ('a, 'v) Election measure) \<Rightarrow>
     (('a, 'v, 'r) Voting_Power_Domain \<Rightarrow> ('a, 'v) Election set) \<Rightarrow> 
       bool" 
   where 
     "ipower M event = (\<forall> X \<in> domain. prob_space (M X) \<and>
-      \<delta> (rule X) (counting_domain X) (voter X) = (emeasure (M X)) (event X))"
+      \<delta> (rule X) (counting_domain X) (voter X) = (emeasure (M X)) (event X))" *)
 
 subsection \<open>Relations between Voting Power and other Axiomatic Properties\<close>
 
@@ -351,8 +390,6 @@ proof -
     by simp
 qed
 
-end
-
 subsection \<open>Characteristics of Specific Power Indices (Sublocales)\<close>
 
 definition uniform_elections :: "('b, 'a, 'c) Voting_Power_Domain \<Rightarrow> ('b, 'a) Election measure"
@@ -370,7 +407,7 @@ begin
 (* TODO *)
 
 end
-
+ 
 sublocale banzhaf_index \<subseteq> voting_power_measure
 proof - qed
 
@@ -781,5 +818,4 @@ fun raw_power :: "'r Distance \<Rightarrow> ('a, 'v, 'r) Voting_Power" where
   "raw_power d f E v = weighted_voting_power f E (raw_weight d E) v"
 
 *)
-
-end
+*)
