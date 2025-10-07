@@ -208,8 +208,10 @@ end
 
 subsection \<open>Specific Voting Power Indices\<close>
 
-locale banzhaf_index = voting_power \<V> \<M> \<delta> 
-  for \<V> :: "'v set" and \<M> :: "'x set" and \<delta> :: "('v, 'x) Voting_Power" +
+locale banzhaf_index = voting_power \<V> \<M> \<delta> AN
+  for \<V> :: "'v set" and \<M> :: "'x set" 
+    and \<delta> :: "('v, 'x) Voting_Power" 
+    and AN :: "('v, 'x) abstract_notions" +
   fixes
     banzhaf_count :: "'x \<Rightarrow> 'v \<Rightarrow> nat"
   assumes
@@ -218,6 +220,9 @@ locale banzhaf_index = voting_power \<V> \<M> \<delta>
 begin
   
 end
+
+sublocale banzhaf_index \<subseteq> voting_power
+proof - qed
   
 subsection \<open>Equivalence of Voting Power Indices Defined on Different Models\<close>
 
@@ -229,16 +234,50 @@ locale power_equivalence =
     and AN :: "('v, 'x) abstract_notions" and AN' :: "('v, 'y) abstract_notions"
     and \<delta> :: "('v, 'x) Voting_Power" and \<delta>' :: "('v, 'y) Voting_Power" +
   assumes
-    coincide: "\<forall> m \<in> \<M>. \<forall> m' \<in> \<M>'. \<forall> v \<in> \<V>. isom m m' \<longrightarrow> \<delta> m v = \<delta>' m' v"
+    coincide: "\<forall> m \<in> \<M>. \<forall> m' \<in> \<M>'. \<forall> v \<in> \<V>. isom m m' \<longrightarrow> \<delta> m v = \<delta>' m' v" 
+    (* TODO use equiv_funs *) 
 
-context model_comparison
+locale rule_svg_equivalence = 
+  power_equivalence \<V> \<F> \<G> isom AN AN' \<delta> \<delta>' + rule_svg_isomorphism \<V> \<F> \<G> isom
+  for \<V> :: "'v set"
+    and \<F> :: "('a, 'v, 'r) Electoral_Module set" 
+    and \<G> :: "'v Simple_Voting_Game set" 
+    and isom :: "('a, 'v, 'r) Electoral_Module \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> bool"
+    and AN :: "('v, ('a, 'v, 'r) Electoral_Module) abstract_notions" 
+    and AN' :: "('v, 'v Simple_Voting_Game) abstract_notions"
+    and \<delta> :: "('v, ('a, 'v, 'r) Electoral_Module) Voting_Power" 
+    and \<delta>' :: "('v, 'v Simple_Voting_Game) Voting_Power"
 begin
 
-fun equiv_pow_props :: 
-  "(('v, 'x) Voting_Power \<Rightarrow> bool) \<Rightarrow> (('v, 'y) Voting_Power \<Rightarrow> bool) \<Rightarrow> bool" where
-  "equiv_pow_props \<phi> \<phi>' = 
-    (\<forall> \<delta> \<delta>'. (power_equivalence \<V> \<M> \<M>' isomorphic \<delta> \<delta>') \<longrightarrow> (\<phi> \<delta> \<longleftrightarrow> \<phi>' \<delta>'))"
-
+lemma equiv_null_player:
+  "v1.null_player \<longleftrightarrow> v2.null_player"
+proof (unfold v1.null_player_def v2.null_player_def, safe)
+  fix
+    V :: "'v set" and (* player set *)
+    val :: "'v set \<Rightarrow> bool" and (* value function *)
+    v :: 'v (* player *)
+  assume
+    valid_game: "(V, val) \<in> \<G>" and
+    valid_player: "v \<in> \<V>" and
+    is_null_player: "\<not> has_swing_vote AN' (V, val) v" and (* TODO make assumptions about AN' *)
+    null_player_rule: "\<forall>m\<in>\<F>. \<forall>v\<in>\<V>. \<not> has_swing_vote AN m v \<longrightarrow> \<delta> m v = 0"
+  show
+    "\<delta>' (V, val) v = 0"
+    sorry
+next
+  fix 
+    f :: "('a, 'v, 'r) Electoral_Module" and
+    v :: 'v
+  assume
+    valid_rule: "f \<in> \<F>" and
+    valid_voter: "v \<in> \<V>" and
+    is_null_player: "\<not> has_swing_vote AN f v" and
+    null_player_game: "\<forall>g\<in>\<G>. \<forall>v\<in>\<V>. \<not> has_swing_vote AN' g v \<longrightarrow> \<delta>' g v = 0"
+  show
+    "\<delta> f v = 0"
+    sorry
+qed 
+  
 end
 
 subsection \<open>(Temporary) Dump\<close>

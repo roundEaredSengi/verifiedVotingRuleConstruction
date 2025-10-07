@@ -30,9 +30,11 @@ locale voting_rule = voting_model voters rules
 sublocale voting_rule \<subseteq> voting_model 
 proof - qed
 
-locale svg = voting_model voters svgs 
-  for voters :: "'v set" and svgs :: "'v Simple_Voting_Game set"
-  (* TODO add assumptions or definitions? *)
+locale svg = voting_model \<V> \<G> 
+  for \<V> :: "'v set" and \<G> :: "'v Simple_Voting_Game set" +
+  assumes
+    valid_games: "\<forall> G \<in> \<G>. voters G = \<V>"
+    (* TODO add more assumptions (e.g. monotonicity) or definitions? *)
 
 sublocale svg \<subseteq> voting_model 
 proof - qed
@@ -48,20 +50,15 @@ text \<open>any model from the first set has a corresponding (isomorphic) model 
 fun ex_iso_elts :: "('s \<Rightarrow> 't \<Rightarrow> bool) \<Rightarrow> 's set \<Rightarrow> 't set \<Rightarrow> bool" where
   "ex_iso_elts iso_models S T = (\<forall> s \<in> S. \<exists> t \<in> T. iso_models s t)"
 
-(* TODO distinguish from model_isomorphism *)
-locale model_comparison = 
-  m1: voting_model \<V> \<M> + m2: voting_model \<V> \<M>'
-  for \<V> :: "'v set" and \<M> :: "'x set" and \<M>' :: "'y set" +
-  fixes
-      isomorphic :: "'x \<Rightarrow> 'y \<Rightarrow> bool"
-
 text \<open>
 two models are isomorphic if:
   - isomorphic models can be found either in both or none of the sets
   - for every element of the first set, there is an iso. element of the second set and vice versa  
 \<close>  
-locale model_isomorphism = model_comparison \<V> \<M> \<M>' isomorphic
-  for \<V> :: "'v set" and \<M> :: "'x set" and \<M>' :: "'y set" and isomorphic :: "'x \<Rightarrow> 'y \<Rightarrow> bool" +
+locale model_isomorphism = voting_model \<V> \<M> + voting_model \<V> \<M>'
+  for \<V> :: "'v set" and \<M> :: "'x set" and \<M>' :: "'y set" +
+  fixes
+    isomorphic :: "'x \<Rightarrow> 'y \<Rightarrow> bool"
   assumes
     iso_occurrence: "only_iso_elts isomorphic \<M> \<M>'" and
     correspondence: "ex_iso_elts isomorphic \<M> \<M>' \<and> ex_iso_elts (swap_args isomorphic) \<M>' \<M>"
@@ -108,6 +105,6 @@ sublocale rule_svg_isomorphism \<subseteq> voting_rule
 proof - qed
 
 sublocale rule_svg_isomorphism \<subseteq> svg
-proof - qed
+proof qed
 
 end
