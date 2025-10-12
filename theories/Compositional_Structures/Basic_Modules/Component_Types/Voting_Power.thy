@@ -194,13 +194,13 @@ begin
 
 subsection \<open>(Abstract) Voting Power Axioms\<close>
 
-definition null_player :: "bool" where
-  "null_player = (\<forall> m \<in> \<M>. \<forall> v \<in> \<V>. \<not>(has_swing_vote AN m v) \<longrightarrow> \<delta> m v = 0)"
+definition null_player where
+  "null_player \<equiv> (\<forall> m \<in> \<M>. \<forall> v \<in> \<V>. \<not>(has_swing_vote AN m v) \<longrightarrow> \<delta> m v = 0)"
 
-definition non_negativity :: "bool" where
+definition non_negativity where
   "non_negativity = (\<forall> m \<in> \<M>. \<forall> v \<in> \<V>. \<delta> m v \<ge> 0)"
 
-definition symmetry :: "bool" where
+definition symmetry where
   "symmetry = (\<forall> \<pi> \<in> Bij \<V>. \<forall> m \<in> \<M>. \<forall> v \<in> \<V>. \<delta> m v = \<delta> (rename_instance AN \<pi> m) (\<pi> v))"
   (* TODO relate with is_symmetry def *)
 
@@ -216,7 +216,6 @@ locale banzhaf_index = voting_power \<V> \<M> \<delta> AN
     banzhaf_count :: "'x \<Rightarrow> 'v \<Rightarrow> nat"
   assumes
     "null_player" and "symmetry" and "non_negativity"
-    "TRUE" (* TODO *)
 begin
   
 end
@@ -276,9 +275,11 @@ next
   show
     "\<delta> f v = 0"
     sorry
-qed 
+qed
   
 end
+
+locale_deps
 
 subsection \<open>(Temporary) Dump\<close>
 

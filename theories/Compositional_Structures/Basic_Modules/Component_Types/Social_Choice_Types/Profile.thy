@@ -86,6 +86,14 @@ definition well_formed_finite_\<V>_elections :: "('a, 'v) Election set" where
   "well_formed_finite_\<V>_elections \<equiv>
       {E :: ('a, 'v) Election. finite_\<V>_election E \<and> well_formed_election E}"
 
+text \<open>
+  Context for talking about elections with arbitrary, but fixed common alternative and voter sets.
+\<close>
+locale fixed_voters_and_alternatives =
+  fixes
+    \<V> :: "'v set" and
+    \<A> :: "'a set"
+
 lemma well_formed_and_finite_\<V>_elections:
   "well_formed_finite_\<V>_elections = well_formed_elections \<inter> finite_\<V>_elections"
   unfolding finite_\<V>_elections_def well_formed_elections_def
