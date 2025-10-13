@@ -6,11 +6,6 @@ theory Voting_Models
 
 begin
 
-subsection \<open>Auxiliary Definitions\<close>
-
-fun swap_args :: "('s \<Rightarrow> 't \<Rightarrow> 'r) \<Rightarrow> ('t \<Rightarrow> 's \<Rightarrow> 'r)" where
-  "swap_args f = (\<lambda>t s. f s t)"
-
 subsection \<open>Voting Models\<close>
 
 text \<open>
@@ -109,6 +104,24 @@ locale model_isomorphism =
     isomorphism :: "'x \<Rightarrow> 'y \<Rightarrow> bool"
   assumes
     "isomorphism \<M> \<M>'"
+
+
+locale model_set_isomorphism =
+  fixes   
+    \<V> :: "'v set" and
+    \<B> :: "'b set" and
+    \<O> :: "'o set" and
+    \<M> :: "('x \<times> (('v \<Rightarrow> 'b) \<Rightarrow> 'o)) set" and
+    \<M>' :: "('y \<times> (('v \<Rightarrow> 'b) \<Rightarrow> 'o)) set" and
+    isomorphism :: "'x \<Rightarrow> 'y \<Rightarrow> bool"
+  assumes
+    correspondence\<^sub>r:
+      "\<forall> (m, f) \<in> \<M>. \<exists> (m', f) \<in> \<M>'. model_isomorphism \<V> \<B> \<O> m m' f isomorphism" and
+    correspondence\<^sub>l: (* implies being a voting_model *)
+      "\<forall> (m', f) \<in> \<M>'. \<exists> (m, f) \<in> \<M>. model_isomorphism \<V> \<B> \<O> m m' f isomorphism" and
+    occurrence:
+      "\<forall> m::'x. \<forall> m'::'y. \<forall>f. 
+        model_isomorphism \<V> \<B> \<O> m m' f isomorphism \<longrightarrow> ((m,f) \<in> \<M> \<longleftrightarrow> (m', f) \<in> \<M>')"
 
 subsection \<open>Exemplary Instantiations\<close>
 
