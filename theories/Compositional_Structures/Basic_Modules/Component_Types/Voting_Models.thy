@@ -115,10 +115,10 @@ locale model_set_isomorphism =
     \<M>' :: "('y \<times> (('v \<Rightarrow> 'b) \<Rightarrow> 'o)) set" and
     isomorphism :: "'x \<Rightarrow> 'y \<Rightarrow> bool"
   assumes
-    correspondence\<^sub>r:
-      "\<forall> (m, f) \<in> \<M>. \<exists> (m', f) \<in> \<M>'. model_isomorphism \<V> \<B> \<O> m m' f isomorphism" and
+    correspondence\<^sub>r: (* implies being a voting_model *)
+      "\<forall> (m, f) \<in> \<M>. \<exists> m'. (m', f) \<in> \<M>' \<and> model_isomorphism \<V> \<B> \<O> m m' f isomorphism" and
     correspondence\<^sub>l: (* implies being a voting_model *)
-      "\<forall> (m', f) \<in> \<M>'. \<exists> (m, f) \<in> \<M>. model_isomorphism \<V> \<B> \<O> m m' f isomorphism" and
+      "\<forall> (m', f) \<in> \<M>'. \<exists> m. (m, f) \<in> \<M> \<and> model_isomorphism \<V> \<B> \<O> m m' f isomorphism" and
     occurrence:
       "\<forall> m::'x. \<forall> m'::'y. \<forall>f. 
         model_isomorphism \<V> \<B> \<O> m m' f isomorphism \<longrightarrow> ((m,f) \<in> \<M> \<longleftrightarrow> (m', f) \<in> \<M>')"

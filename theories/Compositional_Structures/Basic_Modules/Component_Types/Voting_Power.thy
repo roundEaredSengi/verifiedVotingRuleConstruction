@@ -183,10 +183,15 @@ type_synonym ('v, 'x) Voting_Power = "'x \<Rightarrow> 'v \<Rightarrow> real"
 
 record ('v, 'b, 'o, 'x) abstract_notions =
   has_swing_vote :: "'x \<Rightarrow> 'v \<Rightarrow> bool"
-  rename_instance :: "('v \<Rightarrow> 'v) \<Rightarrow> 'x \<Rightarrow> 'x"
+  rename_model :: "('v \<Rightarrow> 'v) \<Rightarrow> 'x \<Rightarrow> 'x"
 
 text \<open>
-  A voting power index assigns real numbers to voters based on voting models.
+  A formal voting power index assigns real numbers to voters based on voting models.
+  While the interpretation (as tallying method) can impact the definition and meaning of an index, 
+  we consider the resulting formula to be applied on the level of voting model structures 'x only.
+  
+  TODO: Explain with examples!
+
   The numbers represent voters' influence on the decision process.
 \<close>
 locale voting_power =
@@ -210,8 +215,11 @@ definition non_negativity where
   "non_negativity = (\<forall> (m, f) \<in> \<M>. \<forall> v \<in> \<V>. \<delta> m v \<ge> 0)"
 
 definition symmetry where
-  "symmetry = (\<forall> \<pi> \<in> Bij \<V>. \<forall> (m, f) \<in> \<M>. \<forall> v \<in> \<V>. \<delta> m v = \<delta> (rename_instance AN \<pi> m) (\<pi> v))"
+  "symmetry = (\<forall> \<pi> \<in> Bij \<V>. \<forall> (m, f) \<in> \<M>. \<forall> v \<in> \<V>. 
+    (\<exists> f'. (rename_model AN \<pi> m, f') \<in> \<M>) \<and> \<delta> m v = \<delta> (rename_model AN \<pi> m) (\<pi> v))"
   (* TODO relate with is_symmetry def *)
+  (* TODO relate model renaming with renaming of the tallying method? *)
+  (* TODO Extend to arbitrary bijective \<pi> as soon as \<V> is not considered fixed anymore *)
 
 end
 
@@ -253,27 +261,90 @@ locale power_equivalence =
   assumes
     coincide: 
       "\<forall> (m, f) \<in> \<M>. \<forall> (m', f) \<in> \<M>'. \<forall> v \<in> \<V>. 
-        model_isomorphism \<V> \<B> \<O> m m' f isomorphism \<longrightarrow> \<delta> m v = \<delta>' m' v"  
-
+        model_isomorphism \<V> \<B> \<O> m m' f isomorphism \<longrightarrow> \<delta> m v = \<delta>' m' v" and
+    (* TODO find better place to define AN equivalence: *)
+    equiv_swings:
+      "\<forall> (m, f) \<in> \<M>. \<forall> (m', f) \<in> \<M>'. \<forall> v \<in> \<V>. 
+        model_isomorphism \<V> \<B> \<O> m m' f isomorphism \<longrightarrow> 
+          (has_swing_vote AN m v \<longleftrightarrow> has_swing_vote AN' m' v)" and
+    iso_renames:
+       "\<forall> (m, f) \<in> \<M>. \<forall> (m', f) \<in> \<M>'. \<forall> v \<in> \<V>. 
+        model_isomorphism \<V> \<B> \<O> m m' f isomorphism \<longrightarrow> 
+          (\<forall> \<pi> :: 'v \<Rightarrow> 'v. \<pi> \<in> Bij \<V> \<longrightarrow> 
+            (\<exists> f'. (rename_model AN \<pi> m, f') \<in> \<M> \<and> (rename_model AN' \<pi> m', f') \<in> \<M>' \<and>
+            model_isomorphism \<V> \<B> \<O> (rename_model AN \<pi> m) (rename_model AN' \<pi> m') f' isomorphism))"
+                                            
 locale svg_rule_power_comparison = 
-  power_equivalence \<V> "(UNIV::bool set)" "(UNIV::bool set)" \<M> \<M>' isomorphism \<delta> \<delta>' AN AN'
+  equiv: power_equivalence \<V> "(UNIV::bool set)" "(UNIV::bool set)" \<M> \<M>' isomorphism \<delta> \<delta>' AN AN'
   for 
     \<V> :: "'v set" and
-    \<M> :: "((('v \<Rightarrow> 'b) \<Rightarrow> 'o) \<times> (('v \<Rightarrow> bool) \<Rightarrow> bool)) set" and
+    \<M> :: "((('v \<Rightarrow> bool) \<Rightarrow> bool) \<times> (('v \<Rightarrow> bool) \<Rightarrow> bool)) set" and
     \<M>' :: "('v Simple_Voting_Game \<times> (('v \<Rightarrow> bool) \<Rightarrow> bool)) set" and
-    isomorphism :: "(('v \<Rightarrow> 'b) \<Rightarrow> 'o) \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> bool" and
-    \<delta> :: "('v, ('v \<Rightarrow> 'b) \<Rightarrow> 'o) Voting_Power" and
+    isomorphism :: "(('v \<Rightarrow> bool) \<Rightarrow> bool) \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> bool" and
+    \<delta> :: "('v, ('v \<Rightarrow> bool) \<Rightarrow> bool) Voting_Power" and
     \<delta>' :: "('v, 'v Simple_Voting_Game) Voting_Power" and
-    AN :: "('v, 'b, 'o, ('v \<Rightarrow> 'b) \<Rightarrow> 'o) abstract_notions" and
+    AN :: "('v, 'b, 'o, ('v \<Rightarrow> bool) \<Rightarrow> bool) abstract_notions" and
     AN' :: "('v, 'b, 'o, 'v Simple_Voting_Game) abstract_notions" +
   assumes
-    rules: "\<forall> (m, f) \<in> \<M>. voting_rule \<V> \<B> \<O> m" and (* and m = f? *)
+    rules: "\<forall> (m, f) \<in> \<M>. voting_rule \<V> (UNIV::bool set) (UNIV::bool set) m" and (* and m = f? *)
     games: "\<forall> (m', f') \<in> \<M>'. simple_voting_game \<V> m'"
 begin
 
+text \<open>
+  Assuming equivalence of \<delta> on voting rules and \<delta>' on simple voting games, 
+  they both either satisfy or do not satisfy the null player axiom.
+  Thus, equivalence of the null player axiom is necessary for \<delta> and \<delta>' to be equivalent.
+\<close>
 lemma equiv_null_player: 
-  "pow1.null_player \<longleftrightarrow> pow2.null_player"
-  sorry
+  "equiv.pow1.null_player \<longleftrightarrow> equiv.pow2.null_player"
+proof (unfold equiv.pow1.null_player_def equiv.pow2.null_player_def, safe)
+  fix
+    V :: "'v set" and
+    vf :: "'v set \<Rightarrow> bool" and
+    f :: " ('v \<Rightarrow> bool) \<Rightarrow> bool" and
+    v :: 'v
+  assume
+    valid_game: "((V, vf), f) \<in> \<M>'" and
+    voter: "v \<in> \<V>" and
+    np: "\<not> has_swing_vote AN' (V, vf) v" and
+    np_ax: "\<forall>(m, f) \<in> \<M>. \<forall>v \<in> \<V>. \<not> has_swing_vote AN m v \<longrightarrow> \<delta> m v = 0"
+  interpret game: simple_voting_game \<V> "(V, vf)"
+    using games valid_game
+    by blast
+  have "\<forall>(m', f)\<in>\<M>'. \<exists>m. (m, f) \<in> \<M> \<and> model_isomorphism \<V> UNIV UNIV m m' f isomorphism"
+    using equiv.model_set_isomorphism_axioms
+    unfolding model_set_isomorphism_def
+    by blast
+  with valid_game have
+    "\<exists> m. (m, f) \<in> \<M> \<and> model_isomorphism \<V> UNIV UNIV m (V, vf) f isomorphism"
+    by blast
+  then obtain m :: "('v \<Rightarrow> bool) \<Rightarrow> bool" where
+    valid_rule: "(m, f) \<in> \<M>" and iso: "model_isomorphism \<V> UNIV UNIV m (V, vf) f isomorphism"
+    by blast
+  hence np': "\<not> has_swing_vote AN m v"
+    using valid_rule valid_game voter iso np equiv.equiv_swings
+    by blast
+  have "\<delta>' (V, vf) v = \<delta> m v"
+    using valid_rule valid_game voter iso equiv.coincide
+    by fastforce (* TODO don't use ff *)
+  also have "\<delta> m v = 0"
+    using valid_rule voter np' np_ax
+    by blast
+  finally show "\<delta>' (V, vf) v = 0"
+    by simp
+next
+  fix
+    r :: "('v \<Rightarrow> bool) \<Rightarrow> bool" and
+    f :: "('v \<Rightarrow> bool) \<Rightarrow> bool" and
+    v :: 'v
+  assume
+    valid_rule: "(r, f) \<in> \<M>" and
+    voter: "v \<in> \<V>" and
+    np: "\<not> has_swing_vote AN r v" and
+    np_ax: "\<forall>(m, f)\<in>\<M>'. \<forall>v\<in>\<V>. \<not> has_swing_vote AN' m v \<longrightarrow> \<delta>' m v = 0"
+  show "\<delta> r v = 0"
+    sorry
+qed
 
 end
 
