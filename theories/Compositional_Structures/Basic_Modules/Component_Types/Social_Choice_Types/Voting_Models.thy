@@ -1,8 +1,7 @@
 section \<open>Definition and Comparison of Voting Models\<close>
 
 theory Voting_Models
-  imports Electoral_Module
-          "Games/Simple_Voting_Game"
+  imports Main
 
 begin
 
@@ -51,36 +50,6 @@ locale voting_rule = voting_model \<V> \<B> \<O> \<F> \<F>
 
 sublocale voting_rule \<subseteq> voting_model \<V> \<B> \<O> \<F> \<F>
 proof (rule local.voting_model_axioms) qed
-
-locale rule\<^sub>e\<^sub>m =
-  fixes 
-    \<V> :: "'v set" and
-    \<A> :: "'a set" and
-    \<R> :: "'r set" and
-    f :: "('a, 'v, 'r) Electoral_Module"
-  assumes
-    valid_results: "\<forall>p::('a, 'v) Profile. profile \<V> \<A> p \<longrightarrow> f \<V> \<A> p \<in> \<R>"
-    (* curious:
-      naming this valid_outcomes as well only leads to errors in interpretations, 
-      not in the sublocale proof *)
-
-sublocale rule\<^sub>e\<^sub>m \<subseteq> voting_rule \<V> "{rel. linear_order_on \<A> rel}" \<R> "\<lambda>p. f \<V> \<A> p"
-proof (unfold_locales, simp add: image_subset_iff profile_def valid_results) qed 
-
-text \<open>
-  A simple voting game is a voting model for voting systems with binary decisions:
-  Each voter chooses one out of two options, modelled as True and False and the result is
-  the True-option iff the voters choosing it are 
-\<close>
-locale simple_voting_game = (* TODO model using 0, 1 instead of Booleans *)
-  voting_model \<V> "UNIV::(bool set)" "UNIV::(bool set)" \<G> "\<lambda>p. value_fun \<G> (preimg p \<V> True)"
-  for \<V> :: "'v set" and \<G> :: "'v Simple_Voting_Game" +
-  assumes 
-    valid_voters: "players \<G> = \<V>"
-
-sublocale simple_voting_game \<subseteq> 
-  voting_model \<V> "UNIV::(bool set)" "UNIV::(bool set)" \<G> "\<lambda>p. value_fun \<G> (preimg p \<V> True)" 
-proof (unfold_locales) qed
 
 subsection \<open>Comparison of Voting Models\<close>
 
@@ -145,28 +114,5 @@ proof (unfold_locales, simp_all)
     unfolding voting_model_def
     by blast
 qed
-
-lemma rule_svg_isomorphism:
-  fixes
-    \<V> :: "'v set" and
-    \<F> :: "('v \<Rightarrow> bool) \<Rightarrow> bool" and
-    \<G> :: "'v Simple_Voting_Game" and
-    f :: "('v \<Rightarrow> bool) \<Rightarrow> bool" and
-    isomorphism :: "(('v \<Rightarrow> bool) \<Rightarrow> bool) \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> bool"
-  assumes
-    "voting_rule \<V> (UNIV::bool set) (UNIV::bool set) \<F>" and
-    "simple_voting_game \<V> \<G>" and
-    "model_isomorphism \<V> (UNIV::bool set) (UNIV::bool set) \<F> \<G> f isomorphism"
-  shows
-    "f = \<F>" and "f = (\<lambda>p. value_fun \<G> (preimg p \<V> True))"
-    (* 
-      TODO won't be able to show that? 
-      There should be counterexamples in the current implementation - fix that!
-    *)
-  sorry
-
-interpretation majority_svg_5_voters:
-  simple_voting_game "{1,2,3,4,5}" "({1,2,3,4,5}, \<lambda>S. card S \<ge> 3)"
-proof (unfold_locales, simp_all) qed
 
 end

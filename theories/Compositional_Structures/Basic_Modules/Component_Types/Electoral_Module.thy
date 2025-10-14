@@ -10,6 +10,7 @@ section \<open>Electoral Module\<close>
 
 theory Electoral_Module
   imports "Social_Choice_Types/Property_Interpretations"
+          "Social_Choice_Types/Voting_Models"
 begin
 
 text \<open>
@@ -1389,5 +1390,22 @@ proof (unfold homogeneity.simps anonymity_finite'.simps)
     using homogeneous_Y_imp_anonymous_Y wf_and_finite_Y
     by safe
 qed
+
+subsection \<open>Electoral Modules as a Voting Model\<close>
+
+locale rule\<^sub>e\<^sub>m =
+  fixes 
+    \<V> :: "'v set" and
+    \<A> :: "'a set" and
+    \<R> :: "'r set" and
+    f :: "('a, 'v, 'r) Electoral_Module"
+  assumes
+    valid_results: "\<forall>p::('a, 'v) Profile. profile \<V> \<A> p \<longrightarrow> f \<V> \<A> p \<in> \<R>"
+    (* curious:
+      naming this valid_outcomes as well only leads to errors in interpretations, 
+      not in the sublocale proof *)
+
+sublocale rule\<^sub>e\<^sub>m \<subseteq> voting_rule \<V> "{rel. linear_order_on \<A> rel}" \<R> "\<lambda>p. f \<V> \<A> p"
+proof (unfold_locales, simp add: image_subset_iff profile_def valid_results) qed
 
 end
