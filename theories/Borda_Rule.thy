@@ -10,6 +10,7 @@ theory Borda_Rule
   imports "Compositional_Structures/Basic_Modules/Borda_Module"
           "Compositional_Structures/Basic_Modules/Component_Types/Votewise_Distance_Rationalization"
           "Compositional_Structures/Elect_Composition"
+          "Compositional_Structures/Basic_Modules/Component_Types/Voting_Model_Comparison"
 begin
 
 text \<open>
@@ -53,5 +54,36 @@ proof (unfold borda_rule\<^sub>\<R>.simps swap_\<R>.simps)
     using \<S>\<C>\<F>_result.anonymous_distance_and_consensus_imp_rule_anonymity
     by metis
 qed
+
+subsection \<open>Interpretation as Voting Rule\<close>
+
+fun \<R> :: "'a set \<Rightarrow> 'a Result set" where
+  "\<R> A = {res::'a Result. set_equals_partition A res \<and> disjoint3 res}"
+
+lemma borda_svg_iso:
+  fixes
+    \<V> :: "'v set" and
+    \<A> :: "'a set"
+  assumes
+    odd: "(card \<V>) mod 2 = 1" and
+    two: "card \<A> = 2"
+  shows
+    rule: "rule\<^sub>e\<^sub>m \<V> \<A> (\<R> \<A>) borda_rule" and
+    game: "simple_voting_game \<V> (\<V>, \<lambda>S. card S > (card \<V>) div 2)" and
+    isom:
+      "model_isomorphism \<V> 
+        {rel. linear_order_on \<A> rel} 
+        (UNIV::bool set) 
+        (\<R> \<A>)
+        (UNIV::bool set) 
+        (borda_rule::('a, 'v, 'a Result) Electoral_Module) 
+        (\<V>, \<lambda>S. card S > (card \<V>) div 2) 
+        (\<lambda> p. borda_rule \<V> \<A> p) 
+        (\<lambda>p. card (preimg p \<V> True) > card \<V> div 2)
+        mech 
+        mech\<^sub>S\<^sub>V\<^sub>G
+        isom"
+  sorry
+  
 
 end

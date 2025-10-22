@@ -181,9 +181,22 @@ subsection \<open>Voting Power\<close>
 
 type_synonym ('v, 'x) Voting_Power = "'x \<Rightarrow> 'v \<Rightarrow> real"
 
-record ('v, 'b, 'o, 'x) abstract_notions =
-  has_swing_vote :: "'x \<Rightarrow> 'v \<Rightarrow> bool"
-  rename_model :: "('v \<Rightarrow> 'v) \<Rightarrow> 'x \<Rightarrow> 'x"
+fun null_player :: 
+  "'x set \<Rightarrow> 'v set \<Rightarrow> ('x \<Rightarrow> 'v \<Rightarrow> bool) \<Rightarrow> ('v, 'x) Voting_Power \<Rightarrow> bool" where
+  "null_player \<M> \<V> has_swing \<delta> = (\<forall> m \<in> \<M>. \<forall> v \<in> \<V>. \<not> (has_swing m v) \<longrightarrow> \<delta> m v = 0)"
+
+fun non_negativity :: "'x set \<Rightarrow> 'v set \<Rightarrow> ('v, 'x) Voting_Power \<Rightarrow> bool" where
+  "non_negativity \<M> \<V> \<delta> = (\<forall> m \<in> \<M>. \<forall> v \<in> \<V>. \<delta> m v \<ge> 0)"
+
+fun symmetry :: 
+  "(('x \<times> (('v \<Rightarrow> 'b) \<Rightarrow> 'o)) set) \<Rightarrow> 'v set \<Rightarrow> 
+    (('v \<Rightarrow> 'v) \<Rightarrow> 'x \<Rightarrow> 'x) \<Rightarrow> ('v, 'x) Voting_Power \<Rightarrow> bool" where
+  "symmetry \<M> \<V> re \<delta> = 
+    (\<forall> \<pi> \<in> Bij \<V>. \<forall> (m, f) \<in> \<M>. \<forall> v \<in> \<V>. (\<exists> f'. (re \<pi> m, f') \<in> \<M>) \<and> \<delta> m v = \<delta> (re \<pi> m) (\<pi> v))"
+  (* TODO relate with is_symmetry def *)
+  (* TODO relate model renaming with renaming of the tallying method f \<rightarrow> f'? *)
+  (* TODO Extend to arbitrary bijective \<pi> as soon as \<V> is not considered fixed anymore *)
+
 
 text \<open>
   A formal voting power index assigns real numbers to voters based on voting models.
@@ -201,42 +214,24 @@ locale voting_power =
     \<O> :: "'o set" and
     \<M> :: "('x \<times> (('v \<Rightarrow> 'b) \<Rightarrow> 'o)) set" and
     \<delta> :: "('v, 'x) Voting_Power" and
-    AN :: "('v, 'b, 'o, 'x) abstract_notions" (structure) 
+    mech :: "('v, 'b, 'o, 'x) mechanisms"
   assumes
     "\<forall> (m, f) \<in> \<M>. voting_model \<V> \<B> \<O> f"
-begin
-
-subsection \<open>(Abstract) Voting Power Axioms\<close>
-
-definition null_player where
-  "null_player \<equiv> (\<forall> (m, f) \<in> \<M>. \<forall> v \<in> \<V>. \<not>(has_swing_vote AN m v) \<longrightarrow> \<delta> m v = 0)"
-
-definition non_negativity where
-  "non_negativity = (\<forall> (m, f) \<in> \<M>. \<forall> v \<in> \<V>. \<delta> m v \<ge> 0)"
-
-definition symmetry where
-  "symmetry = (\<forall> \<pi> \<in> Bij \<V>. \<forall> (m, f) \<in> \<M>. \<forall> v \<in> \<V>. 
-    (\<exists> f'. (rename_model AN \<pi> m, f') \<in> \<M>) \<and> \<delta> m v = \<delta> (rename_model AN \<pi> m) (\<pi> v))"
-  (* TODO relate with is_symmetry def *)
-  (* TODO relate model renaming with renaming of the tallying method? *)
-  (* TODO Extend to arbitrary bijective \<pi> as soon as \<V> is not considered fixed anymore *)
-
-end
 
 subsection \<open>Specific Voting Power Indices\<close>
 
-locale banzhaf_index = voting_power \<V> \<B> \<O> \<M> \<delta> AN
+locale banzhaf_index = voting_power \<V> \<B> \<O> \<M> \<delta> mech
   for 
     \<V> :: "'v set" and
     \<B> :: "'b set" and
     \<O> :: "'o set" and
     \<M> :: "('x \<times> (('v \<Rightarrow> 'b) \<Rightarrow> 'o)) set" and
     \<delta> :: "('v, 'x) Voting_Power" and
-    AN :: "('v, 'b, 'o, 'x) abstract_notions" +
+    mech :: "('v, 'b, 'o, 'x) mechanisms" +
   assumes
-    "null_player" and 
-    "symmetry" and 
-    "non_negativity" 
+    "null_player (fst ` \<M>) \<V> (has_swing_vote mech) \<delta>" and 
+    "symmetry \<M> \<V> (rename_model mech) \<delta>" and 
+    "non_negativity (fst ` \<M>) \<V> \<delta>" 
     (* TODO further properties defining Banzhaf indices *)
 
 sublocale banzhaf_index \<subseteq> voting_power
@@ -245,33 +240,22 @@ proof (unfold_locales) qed
 subsection \<open>Equivalence of Voting Power Indices Defined on Different Models\<close>
 
 locale power_equivalence = 
-  model_set_isomorphism \<V> \<B> \<O> \<M> \<M>' isomorphism +
-    pow1: voting_power \<V> \<B> \<O> \<M> \<delta> AN + pow2: voting_power \<V> \<B> \<O> \<M>' \<delta>' AN'
+  moiso: model_set_isomorphism \<V> \<B> \<O> \<B>' \<O>' \<M> \<M>' iso mech mech' +
+    pow1: voting_power \<V> \<B> \<O> \<M> \<delta> mech + pow2: voting_power \<V> \<B>' \<O>' \<M>' \<delta>' mech'
   for 
     \<V> :: "'v set" and
-    \<B> :: "'b set" and
-    \<O> :: "'o set" and
+    \<B> :: "'b set" and \<B>' :: "'c set" and
+    \<O> :: "'o set" and \<O>' :: "'u set" and
     \<M> :: "('x \<times> (('v \<Rightarrow> 'b) \<Rightarrow> 'o)) set" and
-    \<M>' :: "('y \<times> (('v \<Rightarrow> 'b) \<Rightarrow> 'o)) set" and
-    isomorphism :: "'x \<Rightarrow> 'y \<Rightarrow> bool" and
+    \<M>' :: "('y \<times> (('v \<Rightarrow> 'c) \<Rightarrow> 'u)) set" and
+    iso :: "'x \<Rightarrow> 'y \<Rightarrow> bool" and
     \<delta> :: "('v, 'x) Voting_Power" and
     \<delta>' :: "('v, 'y) Voting_Power" and
-    AN :: "('v, 'b, 'o, 'x) abstract_notions" and
-    AN' :: "('v, 'b, 'o, 'y) abstract_notions" +
+    mech :: "('v, 'b, 'o, 'x) mechanisms" and
+    mech' :: "('v, 'c, 'u, 'y) mechanisms" +
   assumes
     coincide: 
-      "\<forall> (m, f) \<in> \<M>. \<forall> (m', f) \<in> \<M>'. \<forall> v \<in> \<V>. 
-        model_isomorphism \<V> \<B> \<O> m m' f isomorphism \<longrightarrow> \<delta> m v = \<delta>' m' v" and
-    (* TODO find better place to define AN equivalence: *)
-    equiv_swings:
-      "\<forall> (m, f) \<in> \<M>. \<forall> (m', f) \<in> \<M>'. \<forall> v \<in> \<V>. 
-        model_isomorphism \<V> \<B> \<O> m m' f isomorphism \<longrightarrow> 
-          (has_swing_vote AN m v \<longleftrightarrow> has_swing_vote AN' m' v)" and
-    iso_renames:
-       "\<forall> (m, f) \<in> \<M>. \<forall> (m', f) \<in> \<M>'. \<forall> v \<in> \<V>. 
-        model_isomorphism \<V> \<B> \<O> m m' f isomorphism \<longrightarrow> 
-          (\<forall> \<pi> :: 'v \<Rightarrow> 'v. \<pi> \<in> Bij \<V> \<longrightarrow> 
-            (\<exists> f'. (rename_model AN \<pi> m, f') \<in> \<M> \<and> (rename_model AN' \<pi> m', f') \<in> \<M>' \<and>
-            model_isomorphism \<V> \<B> \<O> (rename_model AN \<pi> m) (rename_model AN' \<pi> m') f' isomorphism))"                                         
+      "\<forall> (m, f) \<in> \<M>. \<forall> (m', f') \<in> \<M>'. \<forall> v \<in> \<V>. 
+        model_isomorphism \<V> \<B> \<B>' \<O> \<O>' m m' f f' mech mech' iso \<longrightarrow> \<delta> m v = \<delta>' m' v"                                       
 
 end

@@ -1393,6 +1393,25 @@ qed
 
 subsection \<open>Electoral Modules as a Voting Model\<close>
 
+text \<open>
+  A voting rule models the decision procedure of a voting system as the tallying method itself.
+\<close>
+locale voting_rule = voting_model \<V> \<B> \<O> \<F> \<F> mech
+  for \<V> :: "'v set" and \<B> :: "'b set" and \<O> :: "'o set" and \<F> :: "('v \<Rightarrow> 'b) \<Rightarrow> 'o" and
+    mech :: "('v, 'b, 'o, ('v \<Rightarrow> 'b) \<Rightarrow> 'o) mechanisms"
+  (* TODO add assms? *)
+
+definition trivial_rule_mech :: "('v, 'b, 'o, ('v \<Rightarrow> 'b) \<Rightarrow> 'o) mechanisms" where
+  "trivial_rule_mech =
+    (| has_swing_vote = (\<lambda> r v. True), rename_model = (\<lambda> \<pi> r. r) |)"
+
+sublocale voting_rule \<subseteq> voting_model \<V> \<B> \<O> \<F> \<F> mech
+proof (rule local.voting_model_axioms) qed
+
+interpretation trivial_voting_rule:
+  voting_rule "{}" "{}" "{default}" "\<lambda>p. default" trivial_rule_mech
+proof (unfold_locales, simp) qed
+
 locale rule\<^sub>e\<^sub>m =
   fixes 
     \<V> :: "'v set" and
@@ -1401,9 +1420,6 @@ locale rule\<^sub>e\<^sub>m =
     f :: "('a, 'v, 'r) Electoral_Module"
   assumes
     valid_results: "\<forall>p::('a, 'v) Profile. profile \<V> \<A> p \<longrightarrow> f \<V> \<A> p \<in> \<R>"
-    (* curious:
-      naming this valid_outcomes as well only leads to errors in interpretations, 
-      not in the sublocale proof *)
 
 sublocale rule\<^sub>e\<^sub>m \<subseteq> voting_rule \<V> "{rel. linear_order_on \<A> rel}" \<R> "\<lambda>p. f \<V> \<A> p"
 proof (unfold_locales, simp add: image_subset_iff profile_def valid_results) qed

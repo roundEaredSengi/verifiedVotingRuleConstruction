@@ -9,7 +9,7 @@ theory Kemeny_Rule
   imports
     "Compositional_Structures/Basic_Modules/Component_Types/Votewise_Distance_Rationalization"
     "Compositional_Structures/Basic_Modules/Component_Types/Distance_Rationalization_Symmetry"
-    "Compositional_Structures/Basic_Modules/Component_Types/Voting_Models"
+    "Compositional_Structures/Basic_Modules/Component_Types/Voting_Model_Comparison"
 begin
 
 text \<open>
@@ -62,7 +62,7 @@ theorem kemeny_rule_neutral: "\<S>\<C>\<F>_properties.neutrality kemeny_rule"
 
 subsection \<open>Interpretation as Voting Rule\<close>
 
-interpretation kemeny_nats: 
+interpretation kemeny_nats:
   rule\<^sub>e\<^sub>m \<nat> \<nat> "UNIV::(nat Result) set" "kemeny_rule::(nat, nat, nat Result) Electoral_Module"
 proof (unfold_locales, safe, simp) qed
 

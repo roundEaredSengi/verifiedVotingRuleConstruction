@@ -1,7 +1,7 @@
 section \<open>Definition and Comparison of Voting Models\<close>
 
 theory Voting_Models
-  imports Main
+  imports "HOL-Algebra.Bij"
 
 begin
 
@@ -17,6 +17,7 @@ text \<open>
     - representation \<M> of the decision process itself
     - tallying method that, based on the decision procedure and
         valid decisions in \<B> made by all voters \<V>, yield an election outcome \<O>
+    - specific mechanisms for manipulating and interpreting the model
 
   Note that a specific tallying method is just one interpretation of a voting model's components.
   There may be other sensible interpretations of the same or similar structures. For instance,
@@ -26,30 +27,26 @@ text \<open>
   described in arbitrary detail by letting the voters choose both public and private options
   while the tallying method still considers only the public choices.
 \<close> 
-locale voting_model = 
+
+record ('v, 'b, 'o, 'x) mechanisms =
+  has_swing_vote :: "'x \<Rightarrow> 'v \<Rightarrow> bool"
+  rename_model :: "('v \<Rightarrow> 'v) \<Rightarrow> 'x \<Rightarrow> 'x"
+
+locale voting_model =
   fixes 
     \<V> :: "'v set" and
     \<B> :: "'b set" and
     \<O> :: "'o set" and
-    \<M> :: "'x" and 
+    \<M> :: "'x" and
       (* 
         \<M> is the mathematical structure representing the decision process.
         It may contain details that are ultimately irrelevant to the tallying method.
       *)
-    f :: "('v \<Rightarrow> 'b) \<Rightarrow> 'o" 
+    f :: "('v \<Rightarrow> 'b) \<Rightarrow> 'o" and
       (* Intuitively, f describes the core of \<M> as a decision process. *)
+    mech :: "('v, 'b, 'o, 'x) mechanisms" (structure)
   assumes
     valid_outcomes: "\<forall> p::'v \<Rightarrow> 'b. p ` \<V> \<subseteq> \<B> \<longrightarrow> f p \<in> \<O>"
-
-text \<open>
-  A voting rule models the decision procedure of a voting system as the tallying method itself.
-\<close>
-locale voting_rule = voting_model \<V> \<B> \<O> \<F> \<F>
-  for \<V> :: "'v set" and \<B> :: "'b set" and \<O> :: "'o set" and \<F> :: "('v \<Rightarrow> 'b) \<Rightarrow> 'o"
-  (* TODO add assms? *)
-
-sublocale voting_rule \<subseteq> voting_model \<V> \<B> \<O> \<F> \<F>
-proof (rule local.voting_model_axioms) qed
 
 subsection \<open>Comparison of Voting Models\<close>
 
@@ -59,43 +56,57 @@ text \<open>
   Further requirements about isomorphism of \<M>, \<M>' can be added.
 \<close>
 (* 
-  TODO too strict, only require bijections instead of identity between all components but \<M>, \<M>'?  
+  TODO too strict, require only a bijection between the voter sets?  
 *)
 locale model_isomorphism = 
-  m1: voting_model \<V> \<B> \<O> \<M> f + m2: voting_model \<V> \<B> \<O> \<M>' f
+  m1: voting_model \<V> \<B> \<O> \<M> f mech + m2: voting_model \<V> \<B>' \<O>' \<M>' f' mech'
   for 
     \<V> :: "'v set" and
-    \<B> :: "'b set" and
-    \<O> :: "'o set" and
+    \<B> :: "'b set" and \<B>' :: "'c set" and
+    \<O> :: "'o set" and \<O>' :: "'u set" and
     \<M> :: "'x" and \<M>' :: "'y" and
-    f :: "('v \<Rightarrow> 'b) \<Rightarrow> 'o" +
+    f :: "('v \<Rightarrow> 'b) \<Rightarrow> 'o" and f' :: "('v \<Rightarrow> 'c) \<Rightarrow> 'u" and
+    mech :: "('v, 'b, 'o, 'x) mechanisms" and 
+    mech' :: "('v, 'c, 'u, 'y) mechanisms"  +
   fixes 
-    isomorphism :: "'x \<Rightarrow> 'y \<Rightarrow> bool"
+    iso :: "'x \<Rightarrow> 'y \<Rightarrow> bool"
   assumes
-    "isomorphism \<M> \<M>'"
-
+    iso: "iso \<M> \<M>'" and
+    bij_transform: 
+      "\<exists> \<pi> \<phi>. bij \<pi> \<and> bij_betw \<pi> \<B> \<B>' \<and> bij_betw \<phi> \<O> \<O>' \<and> 
+        (\<forall> p q. \<phi> (f p) = f' (\<lambda> v. \<pi> (p v)) \<and> 
+        f' q = \<phi> (f (\<lambda> v. (the_inv \<pi>) (q v))))" and
+    equiv_swing: "\<forall> v \<in> \<V>. has_swing_vote mech \<M> v \<longleftrightarrow> has_swing_vote mech' \<M>' v"
 
 locale model_set_isomorphism =
-  fixes   
-    \<V> :: "'v set" and
-    \<B> :: "'b set" and
-    \<O> :: "'o set" and
-    \<M> :: "('x \<times> (('v \<Rightarrow> 'b) \<Rightarrow> 'o)) set" and
-    \<M>' :: "('y \<times> (('v \<Rightarrow> 'b) \<Rightarrow> 'o)) set" and
-    isomorphism :: "'x \<Rightarrow> 'y \<Rightarrow> bool"
+  fixes \<V> :: "'v set" and 
+    \<B> :: "'b set" and \<O> :: "'o set" and \<B>' :: "'c set" and \<O>' :: "'u set" and
+    \<M> :: "('x \<times> (('v \<Rightarrow> 'b) \<Rightarrow> 'o)) set" and \<M>' :: "('y \<times> (('v \<Rightarrow> 'c) \<Rightarrow> 'u)) set" and
+    iso :: "'x \<Rightarrow> 'y \<Rightarrow> bool" and mech :: "('v, 'b, 'o, 'x) mechanisms" and 
+    mech' :: "('v, 'c, 'u, 'y) mechanisms"
   assumes
     correspondence\<^sub>r: (* implies being a voting_model *)
-      "\<forall> (m, f) \<in> \<M>. \<exists> m'. (m', f) \<in> \<M>' \<and> model_isomorphism \<V> \<B> \<O> m m' f isomorphism" and
+      "\<forall> (m, f) \<in> \<M>. \<exists> m' f'. (m', f') \<in> \<M>' \<and> 
+        model_isomorphism \<V> \<B> \<B>' \<O> \<O>' m m' f f' mech mech' iso" and
     correspondence\<^sub>l: (* implies being a voting_model *)
-      "\<forall> (m', f) \<in> \<M>'. \<exists> m. (m, f) \<in> \<M> \<and> model_isomorphism \<V> \<B> \<O> m m' f isomorphism" and
+      "\<forall> (m', f') \<in> \<M>'. \<exists> m f. (m, f) \<in> \<M> \<and> 
+        model_isomorphism \<V> \<B> \<B>' \<O> \<O>' m m' f f' mech mech' iso" and
     occurrence:
-      "\<forall> m::'x. \<forall> m'::'y. \<forall>f. 
-        model_isomorphism \<V> \<B> \<O> m m' f isomorphism \<longrightarrow> ((m,f) \<in> \<M> \<longleftrightarrow> (m', f) \<in> \<M>')"
+      "\<forall> m::'x. \<forall> m'::'y. \<forall>f f'. 
+        model_isomorphism \<V> \<B> \<B>' \<O> \<O>' m m' f f' mech mech' iso \<longrightarrow> 
+          ((m,f) \<in> \<M> \<longleftrightarrow> (m',f') \<in> \<M>')" and
+    equiv_rename: 
+      "\<forall> \<pi> \<in> Bij \<V>. \<forall> m::'x. \<forall> m'::'y. \<forall>f f'. (m, f) \<in> \<M> \<longrightarrow> 
+        model_isomorphism \<V> \<B> \<B>' \<O> \<O>' m m' f f' mech mech' iso \<longrightarrow>
+          (\<exists> g g'. (rename_model mech \<pi> m, g) \<in> \<M> \<and> (rename_model mech' \<pi> m', g') \<in> \<M>' \<and>
+            model_isomorphism 
+              \<V> \<B> \<B>' \<O> \<O>' (rename_model mech \<pi> m) (rename_model mech' \<pi> m') g g' mech mech' iso)"
 
 subsection \<open>Exemplary Instantiations\<close>
 
 text \<open> 
-  Any voting model is isomorphic to itself if decision processes are required to be identical.
+  Any voting model is isomorphic to itself if decision processes 
+  are required to be identical in order to be isomorphic.
 \<close>
 lemma self_isomorphism:
   fixes
@@ -103,15 +114,29 @@ lemma self_isomorphism:
     \<B> :: "'b set" and
     \<O> :: "'o set" and
     \<M> :: "'x" and
-    f :: "('v \<Rightarrow> 'b) \<Rightarrow> 'o"
+    f :: "('v \<Rightarrow> 'b) \<Rightarrow> 'o" and
+    mech :: "('v, 'b, 'o, 'x) mechanisms"
   assumes
     "voting_model \<V> \<B> \<O> f"
   shows
-    "model_isomorphism \<V> \<B> \<O> \<M> \<M> f (\<lambda>x y. x = y)"
+    "model_isomorphism \<V> \<B> \<B> \<O> \<O> \<M> \<M> f f mech mech (\<lambda>x y. x = y)"
 proof (unfold_locales, simp_all)
   show "\<forall>p. p ` \<V> \<subseteq> \<B> \<longrightarrow> f p \<in> \<O>"
     using assms
     unfolding voting_model_def
+    by blast
+next
+  have "bij id"
+    by simp
+  moreover have "bij_betw id \<B> \<B>"
+    by simp
+  moreover have "\<forall>p. id (f p) = f (\<lambda>v. id (p v))"
+    by simp
+  moreover have "(\<forall>q. f q = id (f (\<lambda>v. the_inv id (q v))))"
+    unfolding the_inv_into_def
+    by simp
+  ultimately show "\<exists>\<pi>. bij \<pi> \<and> bij_betw \<pi> \<B> \<B> \<and> (\<exists>\<phi>. bij_betw \<phi> \<O> \<O> \<and> 
+    (\<forall>p. \<phi> (f p) = f (\<lambda>v. \<pi> (p v))) \<and> (\<forall>q. f q = \<phi> (f (\<lambda>v. the_inv \<pi> (q v)))))"
     by blast
 qed
 
