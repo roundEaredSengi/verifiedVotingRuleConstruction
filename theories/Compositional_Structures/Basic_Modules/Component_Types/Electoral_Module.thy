@@ -1403,7 +1403,28 @@ locale voting_rule = voting_model \<V> \<B> \<O> \<F> \<F> mech
 
 definition trivial_rule_mech :: "('v, 'b, 'o, ('v \<Rightarrow> 'b) \<Rightarrow> 'o) mechanisms" where
   "trivial_rule_mech =
-    (| has_swing_vote = (\<lambda> r v. True), rename_model = (\<lambda> \<pi> r. r) |)"
+    (| has_swing_vote = (\<lambda> f v. True), rename_model = (\<lambda> \<pi> r. r) |)"
+
+fun coincide_except :: "'x set \<Rightarrow> ('x \<Rightarrow> 'y) \<Rightarrow> ('x \<Rightarrow> 'y) \<Rightarrow> bool" where
+  "coincide_except X f g = (\<forall> x. x \<notin> X \<longrightarrow> f x = g x)"
+
+(* resulting function maps each x to the image of the \<pi>-renamed x *)
+fun rename_fun :: "('x \<Rightarrow> 'x) \<Rightarrow> ('x \<Rightarrow> 'y) \<Rightarrow> ('x \<Rightarrow> 'y)" where
+  "rename_fun \<pi> f = (\<lambda>x. f (\<pi> x))"
+
+text \<open>
+  A voter has a swing vote in a voting rule if there is a situation where they can 
+  single-handedly change the election result.
+  A voting rule is renamed according to a voter renaming by mapping each profile on the 
+  renamed voters to the result of the corresponding profile on the original voters.
+\<close>
+fun mech\<^sub>r :: "'b set \<Rightarrow> ('v, 'b, 'o, ('v \<Rightarrow> 'b) \<Rightarrow> 'o) mechanisms" where
+  "mech\<^sub>r \<B> =
+    (| 
+      has_swing_vote = (\<lambda> f v. (\<exists> p p'. \<exists> b b'. b \<in> \<B> \<and> b' \<in> \<B> \<and>
+        p v = b \<and> p' v = b' \<and> coincide_except {v} p p'  \<and> f p \<noteq> f p')), 
+      rename_model = (\<lambda> \<pi> f. (\<lambda>p. f (rename_fun (the_inv \<pi>) p))) 
+    |)"
 
 sublocale voting_rule \<subseteq> voting_model \<V> \<B> \<O> \<F> \<F> mech
 proof (rule local.voting_model_axioms) qed
@@ -1412,16 +1433,52 @@ interpretation trivial_voting_rule:
   voting_rule "{}" "{}" "{default}" "\<lambda>p. default" trivial_rule_mech
 proof (unfold_locales, simp) qed
 
-locale rule\<^sub>e\<^sub>m =
-  fixes 
+fun mech\<^sub>e\<^sub>m :: 
+  "('v, 'a rel, 'r, ('a, 'v, 'r) Electoral_Module) mechanisms \<Rightarrow> 
+    ('v, 'a rel, 'r, ('v \<Rightarrow> 'a rel) \<Rightarrow> 'r) mechanisms" where
+  "mech\<^sub>e\<^sub>m \<A> =
+    (| 
+      has_swing_vote = (\<lambda> f v. (\<exists> p p'. \<exists> rel rel'. 
+        linear_order_on \<A> rel \<and> linear_order_on \<A> rel' \<and>
+        p v = rel \<and> p' v = rel' \<and> coincide_except {v} p p'  \<and> f p \<noteq> f p')), 
+      rename_model = (\<lambda> \<pi> f. (\<lambda>p. f (rename_fun (the_inv \<pi>) p))) 
+    |)"
+
+locale rule\<^sub>e\<^sub>m = voting_rule where
+    \<V> = \<V> and
+    \<B> = "{rel. linear_order_on \<A> rel}" and
+    \<O> = \<R> and
+    \<F> = "\<lambda>p. f \<V> \<A> p" and
+    mech = "mech\<^sub>e\<^sub>m mech"
+  for
     \<V> :: "'v set" and
     \<A> :: "'a set" and
     \<R> :: "'r set" and
-    f :: "('a, 'v, 'r) Electoral_Module"
+    f :: "('a, 'v, 'r) Electoral_Module" and
+    mech :: "('v, 'a rel, 'r, ('a, 'v, 'r) Electoral_Module) mechanisms" +
   assumes
     valid_results: "\<forall>p::('a, 'v) Profile. profile \<V> \<A> p \<longrightarrow> f \<V> \<A> p \<in> \<R>"
 
-sublocale rule\<^sub>e\<^sub>m \<subseteq> voting_rule \<V> "{rel. linear_order_on \<A> rel}" \<R> "\<lambda>p. f \<V> \<A> p"
-proof (unfold_locales, simp add: image_subset_iff profile_def valid_results) qed
+sublocale rule\<^sub>e\<^sub>m < voting_rule
+  where 
+    \<B> = "{rel. linear_order_on \<A> rel}" and
+    \<O> = \<R> and
+    \<F> = "\<lambda>p. f \<V> \<A> p"
+proof qed
+
+locale rule\<^sub>e\<^sub>m_model_isomorphism = 
+  rule\<^sub>e\<^sub>m \<V> \<A> \<R> f mech + voting_model \<V> \<B> \<O> \<M> \<F> mech' + 
+  model_isomorphism \<V> "{rel. linear_order_on \<A> rel}" \<B> \<R> \<O> "\<lambda>p. f \<V> \<A> p" \<M>
+  for
+    \<V> :: "'v set" and
+    \<A> :: "'a set" and
+    \<R> :: "'r set" and
+    mech :: "('v, 'a rel, 'r, ('v \<Rightarrow> 'a rel) \<Rightarrow> 'r) mechanisms" and
+    \<B> :: "'b set" and
+    \<O> :: "'o set" and
+    f :: "('a, 'v, 'r) Electoral_Module" and
+    \<F> :: "('v \<Rightarrow> 'b) \<Rightarrow> 'o" and
+    \<M> :: 'x and
+    mech' :: "('v, 'b, 'o, 'x) mechanisms"
 
 end

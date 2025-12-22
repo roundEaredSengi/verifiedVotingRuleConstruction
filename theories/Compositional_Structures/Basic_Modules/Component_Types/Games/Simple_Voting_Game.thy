@@ -36,7 +36,7 @@ type_synonym 'v SVG_Voting_Power = "'v Simple_Voting_Game \<Rightarrow> 'v \<Rig
 type_synonym 'v Uncurried_SVG_Voting_Power = "'v SVG_Voting_Power_Domain \<Rightarrow> ereal"
 
 subsection \<open>Simple Voting Games as a Voting Model\<close>
-
+                  
 text \<open>
   A simple voting game is a voting model for voting systems with binary decisions:
   Each voter chooses one out of two options, modelled as True and False and the result is

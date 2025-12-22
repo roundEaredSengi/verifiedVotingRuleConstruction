@@ -240,7 +240,7 @@ proof (unfold_locales) qed
 subsection \<open>Equivalence of Voting Power Indices Defined on Different Models\<close>
 
 locale power_equivalence = 
-  moiso: model_set_isomorphism \<V> \<B> \<O> \<B>' \<O>' \<M> \<M>' iso mech mech' +
+  moiso: model_set_isomorphism \<V> \<B> \<O> \<B>' \<O>' \<M> \<M>' mech mech' +
     pow1: voting_power \<V> \<B> \<O> \<M> \<delta> mech + pow2: voting_power \<V> \<B>' \<O>' \<M>' \<delta>' mech'
   for 
     \<V> :: "'v set" and
@@ -248,7 +248,6 @@ locale power_equivalence =
     \<O> :: "'o set" and \<O>' :: "'u set" and
     \<M> :: "('x \<times> (('v \<Rightarrow> 'b) \<Rightarrow> 'o)) set" and
     \<M>' :: "('y \<times> (('v \<Rightarrow> 'c) \<Rightarrow> 'u)) set" and
-    iso :: "'x \<Rightarrow> 'y \<Rightarrow> bool" and
     \<delta> :: "('v, 'x) Voting_Power" and
     \<delta>' :: "('v, 'y) Voting_Power" and
     mech :: "('v, 'b, 'o, 'x) mechanisms" and
@@ -256,6 +255,6 @@ locale power_equivalence =
   assumes
     coincide: 
       "\<forall> (m, f) \<in> \<M>. \<forall> (m', f') \<in> \<M>'. \<forall> v \<in> \<V>. 
-        model_isomorphism \<V> \<B> \<B>' \<O> \<O>' m m' f f' mech mech' iso \<longrightarrow> \<delta> m v = \<delta>' m' v"                                       
+        model_isomorphism \<V> \<B> \<B>' \<O> \<O>' m m' f f' mech mech' \<longrightarrow> \<delta> m v = \<delta>' m' v"                                       
 
 end

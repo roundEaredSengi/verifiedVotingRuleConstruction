@@ -73,16 +73,16 @@ lemma borda_svg_iso:
     isom:
       "model_isomorphism \<V> 
         {rel. linear_order_on \<A> rel} 
-        (UNIV::bool set) 
+        (UNIV::bool set)
         (\<R> \<A>)
-        (UNIV::bool set) 
+        (UNIV::bool set)
         (borda_rule::('a, 'v, 'a Result) Electoral_Module) 
         (\<V>, \<lambda>S. card S > (card \<V>) div 2) 
         (\<lambda> p. borda_rule \<V> \<A> p) 
         (\<lambda>p. card (preimg p \<V> True) > card \<V> div 2)
-        mech 
-        mech\<^sub>S\<^sub>V\<^sub>G
-        isom"
+        ((mech\<^sub>r::('a rel set \<Rightarrow> ('v, 'a rel, 'a Result, ('v \<Rightarrow> 'a rel) \<Rightarrow> 'a Result) mechanisms)) 
+            {rel. linear_order_on \<A> rel})
+        mech\<^sub>S\<^sub>V\<^sub>G"
   sorry
   
 

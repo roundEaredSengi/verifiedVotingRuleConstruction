@@ -52,8 +52,9 @@ subsection \<open>Comparison of Voting Models\<close>
 
 text \<open>
   For two voting models with different descriptions \<M>, \<M>' of the decision process
-  to be isomorphic, the voters, ballots, outcomes and tallying method necessarily need to be equal.
-  Further requirements about isomorphism of \<M>, \<M>' can be added.
+  to be isomorphic, the voters necessarily need to be equal.
+  The ballots, outcomes and tallying method need to correspond via bijections.
+  Further requirements about isomorphisms of \<M>, \<M>' can be added in sublocales.
 \<close>
 (* 
   TODO too strict, require only a bijection between the voter sets?  
@@ -67,11 +68,8 @@ locale model_isomorphism =
     \<M> :: "'x" and \<M>' :: "'y" and
     f :: "('v \<Rightarrow> 'b) \<Rightarrow> 'o" and f' :: "('v \<Rightarrow> 'c) \<Rightarrow> 'u" and
     mech :: "('v, 'b, 'o, 'x) mechanisms" and 
-    mech' :: "('v, 'c, 'u, 'y) mechanisms"  +
-  fixes 
-    iso :: "'x \<Rightarrow> 'y \<Rightarrow> bool"
+    mech' :: "('v, 'c, 'u, 'y) mechanisms" +
   assumes
-    iso: "iso \<M> \<M>'" and
     bij_transform: 
       "\<exists> \<pi> \<phi>. bij \<pi> \<and> bij_betw \<pi> \<B> \<B>' \<and> bij_betw \<phi> \<O> \<O>' \<and> 
         (\<forall> p q. \<phi> (f p) = f' (\<lambda> v. \<pi> (p v)) \<and> 
@@ -81,26 +79,25 @@ locale model_isomorphism =
 locale model_set_isomorphism =
   fixes \<V> :: "'v set" and 
     \<B> :: "'b set" and \<O> :: "'o set" and \<B>' :: "'c set" and \<O>' :: "'u set" and
-    \<M> :: "('x \<times> (('v \<Rightarrow> 'b) \<Rightarrow> 'o)) set" and \<M>' :: "('y \<times> (('v \<Rightarrow> 'c) \<Rightarrow> 'u)) set" and
-    iso :: "'x \<Rightarrow> 'y \<Rightarrow> bool" and mech :: "('v, 'b, 'o, 'x) mechanisms" and 
-    mech' :: "('v, 'c, 'u, 'y) mechanisms"
+    \<M> :: "('x \<times> (('v \<Rightarrow> 'b) \<Rightarrow> 'o)) set" and \<M>' :: "('y \<times> (('v \<Rightarrow> 'c) \<Rightarrow> 'u)) set" and 
+    mech :: "('v, 'b, 'o, 'x) mechanisms" and mech' :: "('v, 'c, 'u, 'y) mechanisms"
   assumes
     correspondence\<^sub>r: (* implies being a voting_model *)
       "\<forall> (m, f) \<in> \<M>. \<exists> m' f'. (m', f') \<in> \<M>' \<and> 
-        model_isomorphism \<V> \<B> \<B>' \<O> \<O>' m m' f f' mech mech' iso" and
+        model_isomorphism \<V> \<B> \<B>' \<O> \<O>' m m' f f' mech mech'" and
     correspondence\<^sub>l: (* implies being a voting_model *)
       "\<forall> (m', f') \<in> \<M>'. \<exists> m f. (m, f) \<in> \<M> \<and> 
-        model_isomorphism \<V> \<B> \<B>' \<O> \<O>' m m' f f' mech mech' iso" and
+        model_isomorphism \<V> \<B> \<B>' \<O> \<O>' m m' f f' mech mech'" and
     occurrence:
       "\<forall> m::'x. \<forall> m'::'y. \<forall>f f'. 
-        model_isomorphism \<V> \<B> \<B>' \<O> \<O>' m m' f f' mech mech' iso \<longrightarrow> 
+        model_isomorphism \<V> \<B> \<B>' \<O> \<O>' m m' f f' mech mech' \<longrightarrow> 
           ((m,f) \<in> \<M> \<longleftrightarrow> (m',f') \<in> \<M>')" and
     equiv_rename: 
       "\<forall> \<pi> \<in> Bij \<V>. \<forall> m::'x. \<forall> m'::'y. \<forall>f f'. (m, f) \<in> \<M> \<longrightarrow> 
-        model_isomorphism \<V> \<B> \<B>' \<O> \<O>' m m' f f' mech mech' iso \<longrightarrow>
+        model_isomorphism \<V> \<B> \<B>' \<O> \<O>' m m' f f' mech mech' \<longrightarrow>
           (\<exists> g g'. (rename_model mech \<pi> m, g) \<in> \<M> \<and> (rename_model mech' \<pi> m', g') \<in> \<M>' \<and>
             model_isomorphism 
-              \<V> \<B> \<B>' \<O> \<O>' (rename_model mech \<pi> m) (rename_model mech' \<pi> m') g g' mech mech' iso)"
+              \<V> \<B> \<B>' \<O> \<O>' (rename_model mech \<pi> m) (rename_model mech' \<pi> m') g g' mech mech')"
 
 subsection \<open>Exemplary Instantiations\<close>
 
@@ -119,7 +116,7 @@ lemma self_isomorphism:
   assumes
     "voting_model \<V> \<B> \<O> f"
   shows
-    "model_isomorphism \<V> \<B> \<B> \<O> \<O> \<M> \<M> f f mech mech (\<lambda>x y. x = y)"
+    "model_isomorphism \<V> \<B> \<B> \<O> \<O> \<M> \<M> f f mech mech"
 proof (unfold_locales, simp_all)
   show "\<forall>p. p ` \<V> \<subseteq> \<B> \<longrightarrow> f p \<in> \<O>"
     using assms
