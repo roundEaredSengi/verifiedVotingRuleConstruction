@@ -18,14 +18,17 @@ and a map (the tallying method).
 \<close>
 type_synonym ('v, 'b, 'r) Voting_Rule = "'v Voters \<times> 'b set \<times> 'r set \<times> ('v, 'b, 'r) Tallying_Method"
 
-fun rule :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> ('v, 'b, 'r) Tallying_Method" where
-  "rule (V, B, R, f) = f"
+abbreviation rule :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> ('v, 'b, 'r) Tallying_Method" where
+  "rule X \<equiv> snd (snd (snd X))"
 
-fun voters :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> 'v set" where
-  "voters (V, B, R, f) = V"
+abbreviation voters :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> 'v set" where
+  "voters X \<equiv> fst X"
 
-fun ballots :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> 'b set" where
-  "ballots (V, B, R, f) = B"
+abbreviation ballots :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> 'b set" where
+  "ballots X \<equiv> fst (snd X)"
+
+abbreviation results :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> 'r set" where
+  "results X \<equiv> fst (snd (snd X))"
 
 text \<open>
 A strategic game is a tuple consisting of two sets (of voters and outcomes),
