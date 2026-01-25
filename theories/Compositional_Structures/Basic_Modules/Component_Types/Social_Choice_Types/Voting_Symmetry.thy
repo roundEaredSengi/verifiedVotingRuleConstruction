@@ -41,8 +41,8 @@ subsubsection \<open>Neutrality\<close>
 fun rel_rename :: "('a \<Rightarrow> 'a, 'a Preference_Relation) binary_fun" where
   "rel_rename \<pi> r = {(\<pi> a, \<pi> b) | a b. (a, b) \<in> r}"
 
-fun alternatives_rename :: "('a \<Rightarrow> 'a, ('a, 'v) Election) binary_fun" where
-  "alternatives_rename \<pi> \<E> =
+fun alts_rename :: "('a \<Rightarrow> 'a, ('a, 'v) Election) binary_fun" where
+  "alts_rename \<pi> \<E> =
       (\<pi> ` (alternatives_\<E> \<E>), voters_\<E> \<E>, (rel_rename \<pi>) \<circ> (profile_\<E> \<E>))"
 
 text \<open>
@@ -57,7 +57,7 @@ text \<open>Permutation action on the set of alternatives.\<close>
 
 fun \<phi>_neutral :: "('a, 'v) Election set \<Rightarrow>
         ('a \<Rightarrow> 'a, ('a, 'v) Election) binary_fun" where
-  "\<phi>_neutral \<E> \<pi> = extensional_continuation (alternatives_rename \<pi>) \<E>"
+  "\<phi>_neutral \<E> \<pi> = extensional_continuation (alts_rename \<pi>) \<E>"
 
 fun neutrality\<^sub>\<R> :: "('a, 'v) Election set \<Rightarrow> ('a, 'v) Election rel" where
   "neutrality\<^sub>\<R> \<E> = action_induced_rel (carrier bijection\<^sub>\<A>\<^sub>\<G>) \<E> (\<phi>_neutral \<E>)"
@@ -849,8 +849,9 @@ proof (unfold group_action_def group_hom_def bijection\<^sub>\<V>\<^sub>\<G>_def
     using rename_surj bij_\<pi>
     by blast
   moreover have "inj_on (rename \<pi>) well_formed_elections"
-    using rename_inj bij_\<pi> subset_inj_on
-    by blast
+    using rename_inj bij_\<pi> UNIV_I
+    unfolding inj_on_def
+    by metis
   ultimately have "bij_betw (rename \<pi>) well_formed_elections well_formed_elections"
     unfolding bij_betw_def
     by blast
@@ -874,7 +875,7 @@ proof (unfold group_action_def group_hom_def bijection\<^sub>\<V>\<^sub>\<G>_def
     using rename_surj bij_\<pi>
     by blast
   moreover have "inj_on (rename \<pi>') well_formed_elections"
-    using rename_inj bij_\<pi>' subset_inj_on
+    using rename_inj bij_\<pi>' inj_on_subset
     by blast
   ultimately have "bij_betw (rename \<pi>') well_formed_elections well_formed_elections"
     unfolding bij_betw_def
@@ -955,21 +956,20 @@ lemma (in result) anonymity_action_presv_symmetry: "is_symmetry (\<lambda> E. li
 
 subsection \<open>Neutrality Lemmas\<close>
 
-lemma rel_rename_helper:
+lemma bij_rename_equiv:
   fixes
     r :: "'a rel" and
     \<pi> :: "'a \<Rightarrow> 'a" and
     a b :: "'a"
   assumes "bij \<pi>"
-  shows "(\<pi> a, \<pi> b) \<in> {(\<pi> x, \<pi> y) | x y. (x, y) \<in> r}
-            \<longleftrightarrow> (a, b) \<in> {(x, y) | x y. (x, y) \<in> r}"
-proof (safe)
+  shows "(\<pi> a, \<pi> b) \<in> rel_rename \<pi> r \<longleftrightarrow> (a, b) \<in> r"
+proof (unfold rel_rename.simps, safe)
   fix x y :: "'a"
   assume
     "(x, y) \<in> r" and
     "\<pi> a = \<pi> x" and
     "\<pi> b = \<pi> y"
-  thus "\<exists> x y. (a, b) = (x, y) \<and> (x, y) \<in> r"
+  thus "(a, b) \<in> r"
     using assms bij_is_inj the_inv_f_f
     by metis
 next
@@ -979,7 +979,7 @@ next
     by metis
 qed
 
-lemma rel_rename_comp:
+lemma rel_rename_compositional:
   fixes \<pi> \<pi>' :: "'a \<Rightarrow> 'a"
   shows "rel_rename (\<pi> \<circ> \<pi>') = rel_rename \<pi> \<circ> rel_rename \<pi>'"
 proof
@@ -994,23 +994,58 @@ proof
     by simp
 qed
 
-lemma rel_rename_sound:
+lemma rel_rename_presv_rel_on:
   fixes
     \<pi> :: "'a \<Rightarrow> 'a" and
     r :: "'a rel" and
     A :: "'a set"
-  assumes "inj \<pi>"
   shows
-    "refl_on A r \<longrightarrow> refl_on (\<pi> ` A) (rel_rename \<pi> r)" and
-    "antisym r \<longrightarrow> antisym (rel_rename \<pi> r)" and
-    "total_on A r \<longrightarrow> total_on (\<pi> ` A) (rel_rename \<pi> r)" and
-    "Relation.trans r \<longrightarrow> Relation.trans (rel_rename \<pi> r)"
-proof (unfold antisym_def total_on_def Relation.trans_def, safe)
+    on: "r \<subseteq> A \<times> A \<longrightarrow> (rel_rename \<pi> r) \<subseteq> (\<pi> ` A) \<times> (\<pi> ` A)" and
+    refl: "refl_on A r \<longrightarrow> refl_on (\<pi> ` A) (rel_rename \<pi> r)" and
+    total: "total_on A r \<longrightarrow> total_on (\<pi> ` A) (rel_rename \<pi> r)"
+proof (unfold antisym_def total_on_def trans_def, safe)
+  fix a b :: "'a"
+  assume "(a, b) \<in> rel_rename \<pi> r"
+  hence "\<exists> a' b'. (a, b) = (\<pi> a', \<pi> b') \<and> (a', b') \<in> r"
+    by force
+  moreover assume "r \<subseteq> A \<times> A"
+  ultimately show
+    "a \<in> \<pi> ` A" and
+    "b \<in> \<pi> ` A"
+    by (blast, blast)
+next
   assume "refl_on A r"
   thus "refl_on (\<pi> ` A) (rel_rename \<pi> r)"
     unfolding refl_on_def rel_rename.simps
     by blast
 next
+  fix a b :: "'a"
+  assume
+    total: "\<forall> x \<in> A. \<forall> y \<in> A. x \<noteq> y \<longrightarrow> (x, y) \<in> r \<or> (y, x) \<in> r" and
+    a_in_A: "a \<in> A" and
+    b_in_A: "b \<in> A" and
+    \<pi>\<^sub>a_neq_\<pi>\<^sub>b: "\<pi> a \<noteq> \<pi> b" and
+    \<pi>\<^sub>b_not_rel_\<pi>\<^sub>a: "(\<pi> b, \<pi> a) \<notin> rel_rename \<pi> r"
+  hence "(b, a) \<notin> r \<and> a \<noteq> b"
+    unfolding rel_rename.simps
+    by blast
+  hence "(a, b) \<in> r"
+    using a_in_A b_in_A total
+    by blast
+  thus "(\<pi> a, \<pi> b) \<in> rel_rename \<pi> r"
+    unfolding rel_rename.simps
+    by blast
+qed
+
+lemma rel_rename_presv_rel:
+  fixes
+    \<pi> :: "'a \<Rightarrow> 'a" and
+    r :: "'a rel"
+  assumes "inj \<pi>"
+  shows
+    "antisym r \<longrightarrow> antisym (rel_rename \<pi> r)" and
+    "trans r \<longrightarrow> trans (rel_rename \<pi> r)"
+proof (unfold antisym_def total_on_def trans_def, safe)
   fix a b :: "'a"
   assume
     "(a, b) \<in> rel_rename \<pi> r" and
@@ -1036,23 +1071,6 @@ next
   thus "a = b"
     using \<pi>\<^sub>c_eq_a \<pi>\<^sub>d_eq_b
     by simp
-next
-  fix a b :: "'a"
-  assume
-    total: "\<forall> x \<in> A. \<forall> y \<in> A. x \<noteq> y \<longrightarrow> (x, y) \<in> r \<or> (y, x) \<in> r" and
-    a_in_A: "a \<in> A" and
-    b_in_A: "b \<in> A" and
-    \<pi>\<^sub>a_neq_\<pi>\<^sub>b: "\<pi> a \<noteq> \<pi> b" and
-    \<pi>\<^sub>b_not_rel_\<pi>\<^sub>a: "(\<pi> b, \<pi> a) \<notin> rel_rename \<pi> r"
-  hence "(b, a) \<notin> r \<and> a \<noteq> b"
-    unfolding rel_rename.simps
-    by blast
-  hence "(a, b) \<in> r"
-    using a_in_A b_in_A total
-    by blast
-  thus "(\<pi> a, \<pi> b) \<in> rel_rename \<pi> r"
-    unfolding rel_rename.simps
-    by blast
 next
   fix a b c :: "'a"
   assume
@@ -1084,19 +1102,19 @@ next
     by blast
 qed
 
-lemma rename_subset:
+lemma rel_rename_subset:
   fixes
     r s :: "'a rel" and
     a b :: "'a" and
     \<pi> :: "'a \<Rightarrow> 'a"
   assumes
     bij_\<pi>: "bij \<pi>" and
-    "rel_rename \<pi> r = rel_rename \<pi> s" and
-    "(a, b) \<in> r"
+    rename_r_s: "rel_rename \<pi> r = rel_rename \<pi> s" and
+    in_r: "(a, b) \<in> r"
   shows "(a, b) \<in> s"
 proof -
   have "(\<pi> a, \<pi> b) \<in> {(\<pi> a, \<pi> b) | a b. (a, b) \<in> s}"
-    using assms
+    using rename_r_s in_r
     unfolding rel_rename.simps
     by blast
   hence "\<exists> c d. (c, d) \<in> s \<and> \<pi> c = \<pi> a \<and> \<pi> d = \<pi> b"
@@ -1132,7 +1150,7 @@ proof (unfold bij_def inj_def surj_def, safe)
   }
   moreover assume "(a, b) \<in> s"
   ultimately show "(a, b) \<in> r"
-    using rename rename_subset bij_\<pi>
+    using rename rel_rename_subset bij_\<pi>
     by (metis (no_types))
 next
   fix r :: "'a rel"
@@ -1148,26 +1166,24 @@ next
     by blast
 qed
 
-lemma alternatives_rename_comp:
+lemma alts_rename_compositional:
   fixes \<pi> \<pi>' :: "'a \<Rightarrow> 'a"
-  shows "alternatives_rename \<pi> \<circ> alternatives_rename \<pi>' =
-            alternatives_rename (\<pi> \<circ> \<pi>')"
+  shows "alts_rename \<pi> \<circ> alts_rename \<pi>' = alts_rename (\<pi> \<circ> \<pi>')"
 proof
   fix \<E> :: "('a, 'v) Election"
-  have "(alternatives_rename \<pi> \<circ> alternatives_rename \<pi>') \<E> =
+  have "(alts_rename \<pi> \<circ> alts_rename \<pi>') \<E> =
       (\<pi> ` \<pi>' ` (alternatives_\<E> \<E>), voters_\<E> \<E>,
         (rel_rename \<pi>) \<circ> (rel_rename \<pi>') \<circ> (profile_\<E> \<E>))"
     by (simp add: fun.map_comp)
   also have
     "\<dots> = ((\<pi> \<circ> \<pi>') ` (alternatives_\<E> \<E>), voters_\<E> \<E>,
               (rel_rename (\<pi> \<circ> \<pi>')) \<circ> (profile_\<E> \<E>))"
-    using rel_rename_comp image_comp
+    using rel_rename_compositional image_comp
     by metis
-  also have "\<dots> = alternatives_rename (\<pi> \<circ> \<pi>') \<E>"
+  also have "\<dots> = alts_rename (\<pi> \<circ> \<pi>') \<E>"
     by simp
   finally show
-    "(alternatives_rename \<pi> \<circ> alternatives_rename \<pi>') \<E> =
-        alternatives_rename (\<pi> \<circ> \<pi>') \<E>"
+    "(alts_rename \<pi> \<circ> alts_rename \<pi>') \<E> = alts_rename (\<pi> \<circ> \<pi>') \<E>"
     by blast
 qed
 
@@ -1180,7 +1196,7 @@ lemma alternatives_rename_sound:
   assumes
     bij_\<pi>: "bij \<pi>" and
     wf_elects: "(A, V, p) \<in> well_formed_elections" and
-    renamed: "(A', V', p') = alternatives_rename \<pi> (A, V, p)"
+    renamed: "(A', V', p') = alts_rename \<pi> (A, V, p)"
   shows "(A', V', p') \<in> well_formed_elections"
 proof -
   have
@@ -1192,29 +1208,30 @@ proof -
     using wf_elects
     unfolding well_formed_elections_def profile_def
     by simp
-  moreover have "\<forall> v \<in> V'. p' v = rel_rename \<pi> (p v)"
+  moreover have v_rename: "\<forall> v \<in> V'. p' v = rel_rename \<pi> (p v)"
     using renamed
     by simp
   ultimately have "\<forall> v \<in> V'. linear_order_on A' (p' v)"
     unfolding linear_order_on_def partial_order_on_def preorder_on_def
-    using bij_\<pi> rel_rename_sound bij_is_inj
+    using bij_\<pi> rel_rename_presv_rel rel_rename_presv_rel_on bij_is_inj
     by metis
   thus "(A', V', p') \<in> well_formed_elections"
     unfolding well_formed_elections_def profile_def
-    by simp
+    using assms
+    by force
 qed
 
 lemma alternatives_rename_bij:
   fixes \<pi> :: "('a \<Rightarrow> 'a)"
   assumes bij_\<pi>: "bij \<pi>"
-  shows "bij_betw (alternatives_rename \<pi>) well_formed_elections well_formed_elections"
+  shows "bij_betw (alts_rename \<pi>) well_formed_elections well_formed_elections"
 proof (unfold bij_betw_def, safe, intro inj_onI, clarify)
   fix
     A A' :: "'a set" and
     V V' :: "'v set" and
     p p' :: "('a, 'v) Profile"
   assume
-    renamed: "alternatives_rename \<pi> (A, V, p) = alternatives_rename \<pi> (A', V', p')"
+    renamed: "alts_rename \<pi> (A, V, p) = alts_rename \<pi> (A', V', p')"
   hence
     \<pi>_eq_img_A_A': "\<pi> ` A = \<pi> ` A'" and
     rel_rename_eq: "rel_rename \<pi> \<circ> p = rel_rename \<pi> \<circ> p'"
@@ -1242,23 +1259,12 @@ next
     A A' :: "'a set" and
     V V' :: "'v set" and
     p p' :: "('a, 'v) Profile"
-  assume renamed: "(A', V', p') = alternatives_rename \<pi> (A, V, p)"
-  hence rewr: "V = V' \<and> A' = \<pi> ` A"
-    by simp
-  moreover assume "(A, V, p) \<in> well_formed_elections"
-  ultimately have "\<forall> v \<in> V'. linear_order_on A (p v)"
-    unfolding well_formed_elections_def profile_def
-    by simp
-  moreover have "\<forall> v \<in> V'. p' v = rel_rename \<pi> (p v)"
-    using renamed
-    by simp
-  ultimately have "\<forall> v \<in> V'. linear_order_on A' (p' v)"
-    unfolding linear_order_on_def partial_order_on_def preorder_on_def
-    using rewr rel_rename_sound bij_is_inj assms
-    by metis
+  assume
+    "(A', V', p') = alts_rename \<pi> (A, V, p)" and
+    "(A, V, p) \<in> well_formed_elections"
   thus "(A', V', p') \<in> well_formed_elections"
-    unfolding well_formed_elections_def profile_def
-    by simp
+    using alternatives_rename_sound bij_\<pi>
+    by metis
 next
   fix
     A :: "'a set" and
@@ -1266,28 +1272,28 @@ next
     p :: "('a, 'v) Profile"
   assume wf_elects: "(A, V, p) \<in> well_formed_elections"
   have rename_inv:
-    "alternatives_rename (the_inv \<pi>) (A, V, p) =
+    "alts_rename (the_inv \<pi>) (A, V, p) =
         ((the_inv \<pi>) ` A, V, rel_rename (the_inv \<pi>) \<circ> p)"
     by simp
   also have
-    "alternatives_rename \<pi> ((the_inv \<pi>) ` A, V, rel_rename (the_inv \<pi>) \<circ> p) =
+    "alts_rename \<pi> ((the_inv \<pi>) ` A, V, rel_rename (the_inv \<pi>) \<circ> p) =
       (\<pi> ` (the_inv \<pi>) ` A, V, rel_rename \<pi> \<circ> rel_rename (the_inv \<pi>) \<circ> p)"
     by auto
   also have "\<dots> = (A, V, rel_rename (\<pi> \<circ> the_inv \<pi>) \<circ> p)"
-    using bij_\<pi> rel_rename_comp[of \<pi>] the_inv_f_f
+    using bij_\<pi> rel_rename_compositional[of \<pi>] the_inv_f_f
     by (simp add: bij_betw_imp_surj_on bij_is_inj f_the_inv_into_f image_comp)
   also have "(A, V, rel_rename (\<pi> \<circ> the_inv \<pi>) \<circ> p) = (A, V, rel_rename id \<circ> p)"
     using UNIV_I assms comp_apply f_the_inv_into_f_bij_betw id_apply
     by metis
   finally have
-    "alternatives_rename \<pi> (alternatives_rename (the_inv \<pi>) (A, V, p)) =
+    "alts_rename \<pi> (alts_rename (the_inv \<pi>) (A, V, p)) =
         (A, V, p)"
     unfolding rel_rename.simps
     by auto
-  moreover have "alternatives_rename (the_inv \<pi>) (A, V, p) \<in> well_formed_elections"
+  moreover have "alts_rename (the_inv \<pi>) (A, V, p) \<in> well_formed_elections"
     using rename_inv wf_elects alternatives_rename_sound bij_\<pi> bij_betw_the_inv_into
     by (metis (no_types))
-  ultimately show "(A, V, p) \<in> alternatives_rename \<pi> ` well_formed_elections"
+  ultimately show "(A, V, p) \<in> alts_rename \<pi> ` well_formed_elections"
     using image_eqI
     by metis
 qed
@@ -1346,18 +1352,17 @@ proof (unfold group_action_def group_hom_def group_hom_axioms_def hom_def
   moreover have
     "\<forall> \<E> \<in> well_formed_elections.
       (\<phi>_neutral well_formed_elections \<pi> \<circ> \<phi>_neutral well_formed_elections \<pi>') \<E> =
-        alternatives_rename \<pi> (alternatives_rename \<pi>' \<E>)"
+        alts_rename \<pi> (alts_rename \<pi>' \<E>)"
     unfolding \<phi>_neutral.simps
     using wf_closed'
     by auto
   moreover have
     "\<forall> \<E> \<in> well_formed_elections.
-        alternatives_rename \<pi> (alternatives_rename \<pi>' \<E>) =
-            alternatives_rename (\<pi> \<circ> \<pi>') \<E>"
-    using alternatives_rename_comp comp_apply
+        alts_rename \<pi> (alts_rename \<pi>' \<E>) = alts_rename (\<pi> \<circ> \<pi>') \<E>"
+    using alts_rename_compositional comp_apply
     by metis
   moreover have
-    "\<forall> \<E> \<in> well_formed_elections. alternatives_rename (\<pi> \<circ> \<pi>') \<E> =
+    "\<forall> \<E> \<in> well_formed_elections. alts_rename (\<pi> \<circ> \<pi>') \<E> =
         \<phi>_neutral well_formed_elections (\<pi> \<otimes> \<^bsub>BijGroup UNIV\<^esub> \<pi>') \<E>"
     using rewrite_mult_univ bij_carrier bij_carrier'
     unfolding \<phi>_anon.simps \<phi>_neutral.simps extensional_continuation.simps
@@ -1536,13 +1541,12 @@ proof (unfold rewrite_equivariance voters_\<E>.simps profile_\<E>.simps set_acti
     hence "linear_order_on (\<pi> ` A) r"
       by auto
     hence lin_inv: "linear_order_on A ?r_inv"
-      using rel_rename_sound bij_inv bij_is_inj the_inv_\<pi>
+      using rel_rename_presv_rel rel_rename_presv_rel_on bij_inv bij_is_inj the_inv_\<pi>
       unfolding \<psi>_neutral\<^sub>\<w>.simps linear_order_on_def preorder_on_def partial_order_on_def
       by metis
     hence "\<forall> (a, b) \<in> ?r_inv. a \<in> A \<and> b \<in> A"
       unfolding linear_order_on_def partial_order_on_def preorder_on_def
-      using refl_on_def'
-      by metis
+      by blast
     hence "limit A ?r_inv = {(a, b). (a, b) \<in> ?r_inv}"
       by auto
     also have "\<dots> = ?r_inv"

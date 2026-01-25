@@ -12,6 +12,8 @@ begin
 
 subsection \<open>Distances\<close>
 
+subsubsection \<open>Definitions\<close>
+
 fun distance\<^sub>\<Q> :: "'x Distance \<Rightarrow> 'x set Distance" where
   "distance\<^sub>\<Q> d A B = (if A = {} \<and> B = {} then 0 else
                   (if A = {} \<or> B = {} then \<infinity> else
@@ -37,15 +39,18 @@ fun quotient_dist :: "'x rel \<Rightarrow> 'x Distance \<Rightarrow> 'x set Dist
 fun distance_infimum\<^sub>\<Q> :: "'x Distance \<Rightarrow> 'x set Distance" where
   "distance_infimum\<^sub>\<Q> d A B = Inf {d a b | a b. a \<in> A \<and> b \<in> B}"
 
+text \<open>
+  We call a distance simple with respect to a relation if for all relation classes,
+  there is an \<open>a\<close> in \<open>A\<close> that minimizes the infimum distance between \<open>A\<close> and all \<open>B\<close>
+  such that the infimum distance between these sets coincides with the infimum
+  distance over all \<open>b\<close> in \<open>B\<close> for a fixed \<open>a\<close>.
+\<close>
+
 fun simple :: "'x rel \<Rightarrow> 'x set \<Rightarrow> 'x Distance \<Rightarrow> bool" where
   "simple r X d =
     (\<forall> A \<in> X // r.
       \<exists> a \<in> A. \<forall> B \<in> X // r.
         distance_infimum\<^sub>\<Q> d A B = Inf {d a b | b. b \<in> B})"
-\<comment> \<open>We call a distance simple with respect to a relation if for all relation classes,
-    there is an \<open>a\<close> in \<open>A\<close> that minimizes the infimum distance between \<open>A\<close> and all \<open>B\<close>
-    such that the infimum distance between these sets coincides with the infimum
-    distance over all \<open>b\<close> in \<open>B\<close> for a fixed \<open>a\<close>.\<close>
 
 fun product' :: "'x rel \<Rightarrow> ('x * 'x) rel" where
   "product' r = {(p\<^sub>1, p\<^sub>2). ((fst p\<^sub>1, fst p\<^sub>2) \<in> r \<and> snd p\<^sub>1 = snd p\<^sub>2)
@@ -61,7 +66,7 @@ lemma tot_dist_invariance_is_congruence:
   unfolding total_invariance\<^sub>\<D>.simps is_symmetry.simps congruent_def
   by blast
 
-lemma product_helper:
+lemma product_on:
   fixes
     r :: "'x rel" and
     X :: "'x set"
@@ -74,56 +79,51 @@ lemma product_helper:
 
 theorem dist_pass_to_quotient:
   fixes
+    a b :: "'x" and
     d :: "'x Distance" and
     r :: "'x rel" and
-    X :: "'x set"
+    A B X :: "'x set"
   assumes
-    equiv_X_r: "equiv X r" and
-    tot_inv_dist_d_r: "total_invariance\<^sub>\<D> d r"
-  shows "\<forall> A B. A \<in> X // r \<and> B \<in> X // r
-            \<longrightarrow> (\<forall> a b. a \<in> A \<and> b \<in> B \<longrightarrow> distance\<^sub>\<Q> d A B = d a b)"
-proof (safe)
-  fix
-    A B :: "'x set" and
-    a b :: "'x"
-  assume
     a_in_A: "a \<in> A" and
-    "A \<in> X // r"
-  moreover with equiv_X_r quotient_eq_iff
-  have "(a, a) \<in> r"
-    by metis
-  moreover with equiv_X_r
-  have a_in_X: "a \<in> X"
-    using equiv_class_eq_iff
-    by metis
-  ultimately have A_eq_r_a: "A = r `` {a}"
-    using equiv_X_r quotient_eq_iff quotientI
-    by fast
-  assume
     b_in_B: "b \<in> B" and
-    "B \<in> X // r"
-  moreover with equiv_X_r quotient_eq_iff
-  have "(b, b) \<in> r"
-    by metis
-  moreover with equiv_X_r
-  have b_in_X: "b \<in> X"
-    using equiv_class_eq_iff
-    by metis
-  ultimately have B_eq_r_b: "B = r `` {b}"
-    using equiv_X_r quotient_eq_iff quotientI
-    by fast
-  from A_eq_r_a B_eq_r_b a_in_X b_in_X
+    equiv_X_r: "equiv X r" and
+    tot_inv_dist_d_r: "total_invariance\<^sub>\<D> d r" and
+    quotient_A: "A \<in> X // r" and
+    quotient_B: "B \<in> X // r"
+  shows "distance\<^sub>\<Q> d A B = d a b"
+proof -
+  have
+    a_in_X: "a \<in> X" and
+    b_in_X: "b \<in> X"
+    using a_in_A quotient_A b_in_B quotient_B quotient_eq_iff equiv_X_r equiv_class_eq_iff
+    by (metis, metis)
+  hence
+    A_eq_r_a: "A = r `` {a}" and
+    B_eq_r_b: "B = r `` {b}"
+    using a_in_A quotient_A b_in_B quotient_B equiv_X_r
+          quotient_eq_iff quotientI Image_singleton_iff
+    by (metis, metis)
+  have
+    "refl_on X r \<longrightarrow>
+      refl_on (X \<times> X) {(p, p'). (fst p, fst p') \<in> r \<and> (snd p, snd p') \<in> r}" and
+    "sym r \<longrightarrow>
+      sym {(p, p'). (fst p, fst p') \<in> r \<and> (snd p, snd p') \<in> r}" and
+    "Relation.trans r \<longrightarrow>
+      Relation.trans {(p, p'). (fst p, fst p') \<in> r \<and> (snd p, snd p') \<in> r}"
+    using Symmetry_Of_Functions.product.simps
+    by (metis refl_imp, metis sym UNIV_Times_UNIV, metis trans_imp)
+  hence "equiv (X \<times> X) (product r)"
+    using equiv_X_r
+    unfolding equiv_def product.simps subset_iff
+    by auto
+  moreover from A_eq_r_a B_eq_r_b a_in_X b_in_X
   have "A \<times> B \<in> (X \<times> X) // (product r)"
     unfolding quotient_def
     by fastforce
-  moreover have "equiv (X \<times> X) (product r)"
-    using equiv_X_r product_helper UNIV_Times_UNIV equivE equivI
-    by metis
   moreover have "tup d respects (product r)"
     using tot_inv_dist_d_r tot_dist_invariance_is_congruence
     by metis
   ultimately show "distance\<^sub>\<Q> d A B = d a b"
-    unfolding distance\<^sub>\<Q>.simps
     using pass_to_quotient a_in_A b_in_B
     by fastforce
 qed
@@ -134,16 +134,16 @@ lemma relation_paths_subset:
     p :: "'x list" and
     r :: "'x rel" and
     X :: "'x set"
-  assumes "r \<subseteq> X \<times> X"
-  shows "\<forall> p. p \<in> relation_paths r \<longrightarrow> (\<forall> i < length p. p!i \<in> X)"
+  assumes
+    rel_r:  "r \<subseteq> X \<times> X" and
+    path_p: "p \<in> relation_paths r"
+  shows "\<forall> i < length p. p!i \<in> X"
 proof (safe)
-  fix
-    p :: "'x list" and
-    i :: "nat"
-  assume "p \<in> relation_paths r"
-  then obtain k :: "nat" where
+  fix i :: "nat"
+  obtain k :: "nat" where
     len_p: "length p = 2 * k" and
     rel: "\<forall> i < k. (p!(2 * i), p!(2 * i + 1)) \<in> r"
+    using path_p
     by auto
   moreover obtain k' :: "nat" where
     i_cases: "i = 2 * k' \<or> i = 2 * k' + 1"
@@ -153,7 +153,7 @@ proof (safe)
   ultimately have "k' < k"
     by linarith
   thus "p!i \<in> X"
-    using assms rel i_cases
+    using rel_r rel i_cases
     by blast
 qed
 
@@ -164,7 +164,9 @@ lemma admissible_path_len:
     X :: "'x set" and
     a b :: "'x" and
     p :: "'x list"
-  assumes "refl_on X r"
+  assumes
+    "r \<subseteq> X \<times> X" and
+    "refl_on X r"
   shows "triangle_ineq X d \<and> p \<in> relation_paths r \<and> total_invariance\<^sub>\<D> d r
           \<and> a \<in> X \<and> b \<in> X \<longrightarrow> path_length (a#p@[b]) d \<ge> d a b"
 proof (clarify, induction p d arbitrary: a b rule: path_length.induct)
@@ -213,8 +215,7 @@ next
     unfolding relation_paths.simps
     by fastforce
   ultimately have "path_length (a#(x#y#xs)@[b]) d \<ge> d a x + d y b"
-    using assms add_left_mono assms refl_onD2 b_in_X
-    unfolding refl_on_def
+    using assms add_left_mono b_in_X mem_Sigma_iff subsetD
     by metis
   moreover have "d y b = d x b"
     using invar x_rel_y rewrite_total_invariance\<^sub>\<D> assms b_in_X
@@ -232,71 +233,61 @@ lemma quotient_dist_coincides_with_dist\<^sub>\<Q>:
   fixes
     d :: "'x Distance" and
     r :: "'x rel" and
-    X :: "'x set"
+    A B X :: "'x set"
   assumes
-    equiv: "equiv X r" and
-    tri: "triangle_ineq X d" and
-    invar: "total_invariance\<^sub>\<D> d r"
-  shows "\<forall> A \<in> X // r. \<forall> B \<in> X // r. quotient_dist r d A B = distance\<^sub>\<Q> d A B"
-proof (clarify)
-  fix A B :: "'x set"
-  assume
-    A_in_quot_X: "A \<in> X // r" and
-    B_in_quot_X: "B \<in> X // r"
-  then obtain
-    a b :: "'x" where
-      el: "a \<in> A \<and> b \<in> B" and
-      def_dist: "distance\<^sub>\<Q> d A B = d a b"
-    using dist_pass_to_quotient assms in_quotient_imp_non_empty ex_in_conv
-    by (metis (full_types))
-  have "b \<in> X"
-    using B_in_quot_X el equiv quotient_eq_iff equiv equiv_class_eq_iff
-    by metis
-  hence "B = r `` {b}"
-    using equiv_class_self B_in_quot_X el equiv quotientI quotient_eq_iff
-    by metis
-  moreover have "a \<in> X"
-    using A_in_quot_X el equiv quotient_eq_iff equiv equiv_class_eq_iff
-    by metis
-  ultimately have equiv_class: "A = r `` {a} \<and> B = r `` {b}"
-    using A_in_quot_X el equiv quotientI quotient_eq_iff
-    by slow
-  have "\<forall> p \<in> admissible_paths r A B.
-          \<exists> p' x y. x \<in> A \<and> y \<in> B \<and> p' \<in> relation_paths r \<and> p = x#p'@[y]"
+    equiv:      "equiv X r" and
+    tri:        "triangle_ineq X d" and
+    invar:      "total_invariance\<^sub>\<D> d r" and
+    quotient_A: "A \<in> X // r" and
+    quotient_B: "B \<in> X // r"
+  shows "quotient_dist r d A B = distance\<^sub>\<Q> d A B"
+proof -
+  have "\<forall> (p :: 'x list) \<in> admissible_paths r A B. \<exists> (p' :: 'x list) (x :: 'x) (y :: 'x).
+          x \<in> A \<and> y \<in> B \<and> p' \<in> relation_paths r \<and> p = x#p'@[y]"
     unfolding admissible_paths.simps
     by blast
-  moreover have "\<forall> x y. x \<in> A \<and> y \<in> B \<longrightarrow> d x y = d a b"
-    using invar equiv_class
-    by auto
-  moreover have "refl_on X r"
-    using equiv
-    unfolding equiv_def
-    by blast
-  moreover have "r \<subseteq> X \<times> X \<and> A \<subseteq> X \<and> B \<subseteq> X"
-    using assms A_in_quot_X B_in_quot_X Union_quotient Union_upper
+  then obtain f :: "'x list \<Rightarrow> 'x" where
+    "\<exists> (f' :: 'x list \<Rightarrow> 'x) (l :: 'x list \<Rightarrow> 'x list).
+      \<forall> (x :: 'x list). x \<in> admissible_paths r A B
+        \<longrightarrow> l x \<in> relation_paths r \<and> f x \<in> A \<and> f x#l x@[f' x] = x \<and> f' x \<in> B"
+    by moura
+  moreover have
+    "\<forall> (x :: 'x). x \<in> B \<or> x \<in> A \<longrightarrow> x \<in> X" and
+    "\<forall> (p :: 'x list). f p \<in> A \<or> f p \<in> B \<longrightarrow> f p \<in> X"
+    using equiv quotient_A quotient_B Union_quotient Union_upper
     unfolding equiv_def refl_on_def
+    by (blast, blast)
+  moreover obtain a b :: "'x" where
+    el: "a \<in> A \<and> b \<in> B" and
+    def_dist: "distance\<^sub>\<Q> d A B = d a b"
+    using equiv invar quotient_A quotient_B dist_pass_to_quotient
+          in_quotient_imp_non_empty ex_in_conv
+    by (metis (full_types))
+  moreover have "a \<in> X \<and> b \<in> X"
+    using quotient_A quotient_B el equiv quotient_eq_iff equiv_class_eq_iff
     by metis
-  ultimately have "\<forall> p. p \<in> admissible_paths r A B \<longrightarrow> path_length p d \<ge> d a b"
-    using admissible_path_len[of X r d] tri el invar in_mono
+  hence "A = r `` {a} \<and> B = r `` {b}"
+    using quotient_A quotient_B el equiv equiv_class_self quotientI quotient_eq_iff
     by metis
-  hence "\<forall> l. l \<in> \<Union> {{path_length p d | p. p \<in> admissible_paths r A B}}
-                    \<longrightarrow> l \<ge> d a b"
-    by blast
-  hence geq: "quotient_dist r d A B \<ge> distance\<^sub>\<Q> d A B"
+  hence "\<forall> (x :: 'x) (y :: 'x). x \<in> A \<and> y \<in> B \<longrightarrow> d x y = d a b"
+    using invar
+    by simp
+  ultimately have "\<forall> (p :: 'x list). p \<in> admissible_paths r A B \<longrightarrow> d a b \<le> path_length p d"
+    using invar tri equiv equivE admissible_path_len
+    by metis
+  hence "distance\<^sub>\<Q> d A B \<le> quotient_dist r d A B"
     unfolding quotient_dist.simps le_Inf_iff
     using def_dist
-    by simp
-  have "[a, b] \<in> admissible_paths r A B"
+    by force
+  moreover have "[a, b] \<in> admissible_paths r A B \<and> path_length [a, b] d = d a b"
     using el
     by simp
-  moreover have "path_length [a, b] d = d a b"
-    by simp
-  ultimately have "quotient_dist r d A B \<le> d a b"
+  hence "quotient_dist r d A B \<le> d a b"
     unfolding quotient_dist.simps
     using CollectI Inf_lower ccpo_Sup_singleton
     by (metis (mono_tags, lifting))
-  thus "quotient_dist r d A B = distance\<^sub>\<Q> d A B"
-    using geq def_dist nle_le
+  ultimately show "quotient_dist r d A B = distance\<^sub>\<Q> d A B"
+    using def_dist nle_le
     by metis
 qed
 
@@ -304,28 +295,23 @@ lemma inf_dist_coincides_with_dist\<^sub>\<Q>:
   fixes
     d :: "'x Distance" and
     r :: "'x rel" and
-    X :: "'x set"
+    A B X :: "'x set"
   assumes
     equiv_X_r: "equiv X r" and
-    tot_inv_d_r: "total_invariance\<^sub>\<D> d r"
-  shows "\<forall> A \<in> X // r. \<forall> B \<in> X // r.
-            distance_infimum\<^sub>\<Q> d A B = distance\<^sub>\<Q> d A B"
-proof (clarify)
-  fix A B :: "'x set"
-  assume
-    A_in_quot_X: "A \<in> X // r" and
-    B_in_quot_X: "B \<in> X // r"
-  then obtain
-    a b :: "'x" where
-      el: "a \<in> A \<and> b \<in> B" and
-      def_dist: "distance\<^sub>\<Q> d A B = d a b"
-    using dist_pass_to_quotient equiv_X_r tot_inv_d_r
+    tot_inv_d_r: "total_invariance\<^sub>\<D> d r" and
+    quotient_A: "A \<in> X // r" and
+    quotient_B: "B \<in> X // r"
+  shows "distance_infimum\<^sub>\<Q> d A B = distance\<^sub>\<Q> d A B"
+proof-
+  obtain a b :: "'x" where
+    el: "a \<in> A \<and> b \<in> B" and
+    def_dist: "distance\<^sub>\<Q> d A B = d a b"
+    using quotient_A quotient_B dist_pass_to_quotient equiv_X_r tot_inv_d_r
           in_quotient_imp_non_empty ex_in_conv
     by (metis (full_types))
-  from def_dist equiv_X_r tot_inv_d_r
-  have "\<forall> x y. x \<in> A \<and> y \<in> B \<longrightarrow> d x y = d a b"
-    using dist_pass_to_quotient A_in_quot_X B_in_quot_X
-    by force
+  have "\<forall> (x :: 'x) (y :: 'x). x \<in> A \<and> y \<in> B \<longrightarrow> d x y = d a b"
+    using quotient_A quotient_B dist_pass_to_quotient def_dist equiv_X_r tot_inv_d_r
+    by (metis (full_types))
   hence "{d x y | x y. x \<in> A \<and> y \<in> B} = {d a b}"
     using el
     by blast
@@ -342,38 +328,39 @@ lemma inf_helper:
   shows "Inf {d a b | a b. a \<in> A \<and> b \<in> B} =
             Inf {Inf {d a b | b. b \<in> B} | a. a \<in> A}"
 proof -
-  have "\<forall> a b. a \<in> A \<and> b \<in> B \<longrightarrow> Inf {d a b | b. b \<in> B} \<le> d a b"
+  have "\<forall> (a :: 'x) (b :: 'x). a \<in> A \<and> b \<in> B \<longrightarrow> Inf {d a b | b. b \<in> B} \<le> d a b"
     using INF_lower Setcompr_eq_image
     by metis
-  hence "\<forall> \<alpha> \<in> {d a b | a b. a \<in> A \<and> b \<in> B}.
-            \<exists> \<beta> \<in> {Inf {d a b | b. b \<in> B} | a. a \<in> A}. \<beta> \<le> \<alpha>"
+  hence "\<forall> (\<alpha>::ereal) \<in> {d a b | (a :: 'x) (b :: 'x). a \<in> A \<and> b \<in> B}.
+            \<exists> (\<beta>::ereal) \<in> {Inf {d a b | (b :: 'x). b \<in> B} | (a :: 'x). a \<in> A}. \<beta> \<le> \<alpha>"
     by blast
-  hence "Inf {Inf {d a b | b. b \<in> B} | a. a \<in> A}
-          \<le> Inf {d a b | a b. a \<in> A \<and> b \<in> B}"
+  hence "Inf {Inf {d a b | b. b \<in> B} | (a :: 'x). a \<in> A}
+          \<le> Inf {d a b | (a :: 'x) (b :: 'x). a \<in> A \<and> b \<in> B}"
     using Inf_mono
     by (metis (no_types, lifting))
   moreover have
-    "\<not> Inf {Inf {d a b | b. b \<in> B} | a. a \<in> A}
-              < Inf {d a b | a b. a \<in> A \<and> b \<in> B}"
+    "\<not> Inf {Inf {d a b | b. b \<in> B} | (a :: 'x). a \<in> A}
+              < Inf {d a b | (a :: 'x) (b :: 'x). a \<in> A \<and> b \<in> B}"
   proof (rule ccontr, safe)
-    assume "Inf {Inf {d a b | b. b \<in> B} | a. a \<in> A}
-                  < Inf {d a b | a b. a \<in> A \<and> b \<in> B}"
+    assume "Inf {Inf {d a b | (b :: 'x). b \<in> B} | (a :: 'x). a \<in> A}
+                  < Inf {d a b | (a :: 'x) (b :: 'x). a \<in> A \<and> b \<in> B}"
     then obtain \<alpha> :: "ereal" where
-      inf: "\<alpha> \<in> {Inf {d a b | b. b \<in> B} | a. a \<in> A}" and
-      less: "\<alpha> < Inf {d a b | a b. a \<in> A \<and> b \<in> B}"
+      inf: "\<alpha> \<in> {Inf {d a b | (b :: 'x). b \<in> B} | (a :: 'x). a \<in> A}" and
+      less: "\<alpha> < Inf {d a b | (a :: 'x) (b :: 'x). a \<in> A \<and> b \<in> B}"
       using Inf_less_iff
       by (metis (no_types, lifting))
     then obtain a :: "'x" where
       a_in_A: "a \<in> A" and
-      "\<alpha> = Inf {d a b | b. b \<in> B}"
+      "\<alpha> = Inf {d a b | (b :: 'x). b \<in> B}"
       by blast
     with less
-    have inf_less: "Inf {d a b | b. b \<in> B} < Inf {d a b | a b. a \<in> A \<and> b \<in> B}"
+    have inf_less:
+      "Inf {d a b | (b :: 'x). b \<in> B} < Inf {d a b | (a :: 'x) (b :: 'x). a \<in> A \<and> b \<in> B}"
       by blast
-    have "{d a b | b. b \<in> B} \<subseteq> {d a b | a b. a \<in> A \<and> b \<in> B}"
+    have "{d a b | (b :: 'x). b \<in> B} \<subseteq> {d a b | (a :: 'x) (b :: 'x). a \<in> A \<and> b \<in> B}"
       using a_in_A
       by blast
-    hence "Inf {d a b | a b. a \<in> A \<and> b \<in> B} \<le> Inf {d a b | b. b \<in> B}"
+    hence "Inf {d a b | (a :: 'x) (b :: 'x). a \<in> A \<and> b \<in> B} \<le> Inf {d a b | (b :: 'x). b \<in> B}"
       using Inf_superset_mono
       by (metis (no_types, lifting))
     with inf_less
@@ -406,74 +393,74 @@ proof (unfold simple.simps, safe)
     a_in_A: "a \<in> A"
     using equiv_Eps_in
     by blast
-  have subset: "\<forall> B \<in> Y // action_induced_rel (carrier G) Y \<phi>. B \<subseteq> Y"
+  have subset: "\<forall> (B :: 'y set) \<in> Y // action_induced_rel (carrier G) Y \<phi>. B \<subseteq> Y"
     using equiv_rel in_quotient_imp_subset
     by blast
-  hence "\<forall> B \<in> Y // action_induced_rel (carrier G) Y \<phi>.
-          \<forall> B' \<in> Y // action_induced_rel (carrier G) Y \<phi>.
-            \<forall> b \<in> B. \<forall> c \<in> B'. b \<in> Y \<and> c \<in> Y"
+  hence "\<forall> (B :: 'y set) \<in> Y // action_induced_rel (carrier G) Y \<phi>.
+          \<forall> (B' :: 'y set) \<in> Y // action_induced_rel (carrier G) Y \<phi>.
+            \<forall> (b :: 'y) \<in> B. \<forall> (c :: 'y) \<in> B'. b \<in> Y \<and> c \<in> Y"
     using class\<^sub>Y
     by blast
   hence eq_dist:
-    "\<forall> B \<in> Y // action_induced_rel (carrier G) Y \<phi>.
-      \<forall> B' \<in> Y // action_induced_rel (carrier G) Y \<phi>.
-        \<forall> b \<in> B. \<forall> c \<in> B'. \<forall> g \<in> carrier G.
+    "\<forall> (B :: 'y set) \<in> Y // action_induced_rel (carrier G) Y \<phi>.
+      \<forall> (B' :: 'y set) \<in> Y // action_induced_rel (carrier G) Y \<phi>.
+        \<forall> (b :: 'y) \<in> B. \<forall> (c :: 'y) \<in> B'. \<forall> (g :: 'x) \<in> carrier G.
           d (\<phi> g c) (\<phi> g b) = d c b"
     using invar rewrite_invariance\<^sub>\<D> class\<^sub>Y
     by metis
-  have "\<forall> b \<in> Y. \<forall> g \<in> carrier G.
+  have "\<forall> (b :: 'y) \<in> Y. \<forall> (g :: 'x) \<in> carrier G.
           (b, \<phi> g b) \<in> action_induced_rel (carrier G) Y \<phi>"
     unfolding action_induced_rel.simps
     using group_action.element_image action_\<phi>
     by fastforce
-  hence "\<forall> b \<in> Y. \<forall> g \<in> carrier G.
+  hence "\<forall> (b :: 'y) \<in> Y. \<forall> (g :: 'x) \<in> carrier G.
             \<phi> g b \<in> action_induced_rel (carrier G) Y \<phi> `` {b}"
     unfolding Image_def
     by blast
   moreover have equiv_class:
-    "\<forall> B. B \<in> Y // action_induced_rel (carrier G) Y \<phi> \<longrightarrow>
-      (\<forall> b \<in> B. B = action_induced_rel (carrier G) Y \<phi> `` {b})"
+    "\<forall> (B :: 'y set). B \<in> Y // action_induced_rel (carrier G) Y \<phi> \<longrightarrow>
+      (\<forall> (b :: 'y) \<in> B. B = action_induced_rel (carrier G) Y \<phi> `` {b})"
     using Image_singleton_iff equiv_class_eq_iff equiv_rel
           quotientI quotient_eq_iff
     by meson
   ultimately have closed_class:
-    "\<forall> B \<in> Y // action_induced_rel (carrier G) Y \<phi>.
-          \<forall> b \<in> B. \<forall> g \<in> carrier G. \<phi> g b \<in> B"
+    "\<forall> (B :: 'y set) \<in> Y // action_induced_rel (carrier G) Y \<phi>.
+          \<forall> (b :: 'y) \<in> B. \<forall> (g :: 'x) \<in> carrier G. \<phi> g b \<in> B"
     using equiv_rel subset
     by blast
   with eq_dist class\<^sub>Y
   have a_subset_A:
-    "\<forall> B \<in> Y // action_induced_rel (carrier G) Y \<phi>.
-      {d a b | b. b \<in> B} \<subseteq> {d a b | a b. a \<in> A \<and> b \<in> B}"
+    "\<forall> (B :: 'y set) \<in> Y // action_induced_rel (carrier G) Y \<phi>.
+      {d a b | (b :: 'y). b \<in> B} \<subseteq> {d a b | (a :: 'y) (b :: 'y). a \<in> A \<and> b \<in> B}"
     using a_in_A
     by blast
-  have "\<forall> a' \<in> A. A = action_induced_rel (carrier G) Y \<phi> `` {a'}"
+  have "\<forall> (a' :: 'y) \<in> A. A = action_induced_rel (carrier G) Y \<phi> `` {a'}"
     using class\<^sub>Y equiv_rel equiv_class
     by presburger
-  hence "\<forall> a' \<in> A. (a', a) \<in> action_induced_rel (carrier G) Y \<phi>"
+  hence "\<forall> (a' :: 'y) \<in> A. (a', a) \<in> action_induced_rel (carrier G) Y \<phi>"
     using a_in_A
     by blast
-  hence "\<forall> a' \<in> A. \<exists> g \<in> carrier G. \<phi> g a' = a"
+  hence "\<forall> (a' :: 'y) \<in> A. \<exists> (g :: 'x) \<in> carrier G. \<phi> g a' = a"
     by simp
-  hence "\<forall> B \<in> Y // action_induced_rel (carrier G) Y \<phi>.
-      \<forall> a' b. a' \<in> A \<and> b \<in> B \<longrightarrow> (\<exists> g \<in> carrier G. d a' b = d a (\<phi> g b))"
+  hence "\<forall> (B :: 'y set) \<in> Y // action_induced_rel (carrier G) Y \<phi>.
+      \<forall> (a' :: 'y) \<in> A. \<forall> (b :: 'y) \<in> B. \<exists> (g :: 'x) \<in> carrier G. d a' b = d a (\<phi> g b)"
     using eq_dist class\<^sub>Y
     by metis
-  hence "\<forall> B \<in> Y // action_induced_rel (carrier G) Y \<phi>.
-      \<forall> a' b. a' \<in> A \<and> b \<in> B \<longrightarrow> d a' b \<in> {d a b | b. b \<in> B}"
+  hence "\<forall> (B :: 'y set) \<in> Y // action_induced_rel (carrier G) Y \<phi>.
+      \<forall> (a' :: 'y) \<in> A. \<forall> (b :: 'y) \<in> B. d a' b \<in> {d a b | (b :: 'y). b \<in> B}"
     using closed_class mem_Collect_eq
     by fastforce
-  hence "\<forall> B \<in> Y // action_induced_rel (carrier G) Y \<phi>.
-      {d a b | b. b \<in> B} \<supseteq> {d a b | a b. a \<in> A \<and> b \<in> B}"
+  hence "\<forall> (B :: 'y set) \<in> Y // action_induced_rel (carrier G) Y \<phi>.
+      {d a b | (b :: 'y). b \<in> B} \<supseteq> {d a b | (a :: 'y) (b :: 'y). a \<in> A \<and> b \<in> B}"
     using closed_class
     by blast
   with a_subset_A
-  have "\<forall> B \<in> Y // action_induced_rel (carrier G) Y \<phi>.
-          distance_infimum\<^sub>\<Q> d A B = Inf {d a b | b. b \<in> B}"
+  have "\<forall> (B :: 'y set) \<in> Y // action_induced_rel (carrier G) Y \<phi>.
+          distance_infimum\<^sub>\<Q> d A B = Inf {d a b | (b :: 'y). b \<in> B}"
     unfolding distance_infimum\<^sub>\<Q>.simps
     by fastforce
-  thus "\<exists> a \<in> A. \<forall> B \<in> Y // action_induced_rel (carrier G) Y \<phi>.
-      distance_infimum\<^sub>\<Q> d A B = Inf {d a b | b. b \<in> B}"
+  thus "\<exists> (a :: 'y) \<in> A. \<forall> (B :: 'y set) \<in> Y // action_induced_rel (carrier G) Y \<phi>.
+      distance_infimum\<^sub>\<Q> d A B = Inf {d a b | (b :: 'y). b \<in> B}"
     using a_in_A
     by blast
 qed
@@ -494,48 +481,53 @@ proof (unfold simple.simps, safe)
     a_in_A: "a \<in> A"
     using equiv_on_X equiv_Eps_in
     by blast
-  have "\<forall> a \<in> A. A = r `` {a}"
+  have "\<forall> (a :: 'x) \<in> A. A = r `` {a}"
     using A_quot_X Image_singleton_iff equiv_class_eq equiv_on_X quotientE
     by metis
-  hence "\<forall> a a'. a \<in> A \<and> a' \<in> A \<longrightarrow> (a, a') \<in> r"
+  hence "\<forall> (a :: 'x) \<in> A. \<forall> (a' :: 'x) \<in> A. (a, a') \<in> r"
     by blast
-  moreover have "\<forall> B \<in> X // r. \<forall> b \<in> B. (b, b) \<in> r"
+  moreover have "\<forall> (B :: 'x set) \<in> X // r. \<forall> (b :: 'x) \<in> B. (b, b) \<in> r"
     using equiv_on_X quotient_eq_iff
     by metis
   ultimately have
-    "\<forall> B \<in> X // r. \<forall> a a' b. a \<in> A \<and> a' \<in> A \<and> b \<in> B \<longrightarrow> d a b = d a' b"
+    "\<forall> (B :: 'x set) \<in> X // r.
+      \<forall> (a :: 'x) \<in> A. \<forall> (a' :: 'x) \<in> A. \<forall> (b :: 'x) \<in> B. d a b = d a' b"
     using invar rewrite_total_invariance\<^sub>\<D>
     by simp
-  hence "\<forall> B \<in> X // r.
-    {d a b | a b. a \<in> A \<and> b \<in> B} = {d a b | a' b. a' \<in> A \<and> b \<in> B}"
+  hence "\<forall> (B :: 'x set) \<in> X // r.
+    {d a b | (a :: 'x) (b :: 'x). a \<in> A \<and> b \<in> B}
+      = {d a b | (a' :: 'x) (b :: 'x). a' \<in> A \<and> b \<in> B}"
     using a_in_A
     by blast
   moreover have
-    "\<forall> B \<in> X // r. {d a b | a' b. a' \<in> A \<and> b \<in> B} =
-        {d a b | b. b \<in> B}"
+    "\<forall> (B :: 'x set) \<in> X // r.
+      {d a b | (a' :: 'x) (b :: 'x). a' \<in> A \<and> b \<in> B}
+        = {d a b | (b :: 'x). b \<in> B}"
     using a_in_A
     by blast
   ultimately have
-    "\<forall> B \<in> X // r. Inf {d a b | a b. a \<in> A \<and> b \<in> B} =
-        Inf {d a b | b. b \<in> B}"
+    "\<forall> (B :: 'x set) \<in> X // r. Inf {d a b | (a :: 'x) (b :: 'x). a \<in> A \<and> b \<in> B} =
+        Inf {d a b | (b :: 'x). b \<in> B}"
     by simp
-  hence "\<forall> B \<in> X // r. distance_infimum\<^sub>\<Q> d A B =
-        Inf {d a b | b. b \<in> B}"
+  hence "\<forall> (B :: 'x set) \<in> X // r. distance_infimum\<^sub>\<Q> d A B =
+        Inf {d a b | (b :: 'x). b \<in> B}"
     by simp
-  thus "\<exists> a \<in> A. \<forall> B \<in> X // r.
-          distance_infimum\<^sub>\<Q> d A B = Inf {d a b | b. b \<in> B}"
+  thus "\<exists> (a :: 'x) \<in> A. \<forall> (B :: 'x set) \<in> X // r.
+          distance_infimum\<^sub>\<Q> d A B = Inf {d a b | (b :: 'x). b \<in> B}"
     using a_in_A
     by blast
 qed
 
 subsection \<open>Consensus and Results\<close>
 
+subsubsection \<open>Definitions\<close>
+
 fun elections_\<K>\<^sub>\<Q> :: "('a, 'v) Election rel \<Rightarrow> ('a, 'v, 'r Result) Consensus_Class \<Rightarrow>
         ('a, 'v) Election set set" where
   "elections_\<K>\<^sub>\<Q> r C = (elections_\<K> C) // r"
 
 fun (in result) limit\<^sub>\<Q> :: "('a, 'v) Election set \<Rightarrow> 'r set \<Rightarrow> 'r set" where
-  "limit\<^sub>\<Q> X res = \<Inter> {limit (alternatives_\<E> E) res | E. E \<in> X}"
+  "limit\<^sub>\<Q> X res = \<Inter> {limit (alternatives_\<E> E) res | (E :: ('a, 'v) Election). E \<in> X}"
 
 subsubsection \<open>Auxiliary Lemmas\<close>
 
@@ -563,7 +555,7 @@ proof (safe)
     using assms
     unfolding equiv_def refl_on_def
     by blast
-  hence "z \<in> {z. \<exists> y \<in> Y. (y, z) \<in> r \<inter> Y \<times> X}"
+  hence "z \<in> {(z :: 'x). \<exists> (y :: 'x) \<in> Y. (y, z) \<in> r \<inter> Y \<times> X}"
     by blast
   thus "z \<in> Y"
     using assms
@@ -581,15 +573,16 @@ lemma (in result) limit_invar:
     quot_class: "A \<in> X // r" and
     equiv_rel: "equiv X r" and
     cons_subset: "elections_\<K> C \<subseteq> X" and
-    invar_res: "is_symmetry (\<lambda> E. limit (alternatives_\<E> E) UNIV) (Invariance r)"
-  shows "\<forall> a \<in> A. limit (alternatives_\<E> a) UNIV = limit\<^sub>\<Q> A UNIV"
+    invar_res:
+      "is_symmetry (\<lambda> (E :: ('a, 'v) Election). limit (alternatives_\<E> E) UNIV) (Invariance r)"
+  shows "\<forall> (a :: ('a, 'v) Election) \<in> A. limit (alternatives_\<E> a) UNIV = limit\<^sub>\<Q> A UNIV"
 proof
   fix a :: "('a, 'v) Election"
   assume a_in_A: "a \<in> A"
-  hence "\<forall> b \<in> A. (a, b) \<in> r"
+  hence "\<forall> (b :: ('a, 'v) Election) \<in> A. (a, b) \<in> r"
     using quot_class equiv_rel quotient_eq_iff
     by metis
-  hence "\<forall> b \<in> A.
+  hence "\<forall> (b :: ('a, 'v) Election) \<in> A.
     limit (alternatives_\<E> b) UNIV = limit (alternatives_\<E> a) UNIV"
     using invar_res
     unfolding is_symmetry.simps
@@ -607,17 +600,16 @@ lemma (in result) preimg_invar:
     f :: "'x \<Rightarrow> 'y" and
     domain\<^sub>f X :: "'x set" and
     d :: "'x Distance" and
-    r :: "'x rel"
+    r :: "'x rel" and
+    y :: "'y"
   assumes
     equiv_rel: "equiv X r" and
     cons_subset: "domain\<^sub>f \<subseteq> X" and
     closed_domain: "closed_restricted_rel r X domain\<^sub>f" and
     invar_f: "is_symmetry f (Invariance (Restr r domain\<^sub>f))"
-  shows "\<forall> y. (preimg f domain\<^sub>f y) // r = preimg (\<pi>\<^sub>\<Q> f) (domain\<^sub>f // r) y"
+  shows "(preimg f domain\<^sub>f y) // r = preimg (\<pi>\<^sub>\<Q> f) (domain\<^sub>f // r) y"
 proof (safe)
-  fix
-    A :: "'x set" and
-    y :: "'y"
+  fix A :: "'x set"
   assume preimg_quot: "A \<in> preimg f domain\<^sub>f y // r"
   hence A_in_dom: "A \<in> domain\<^sub>f // r"
     unfolding preimg.simps quotient_def
@@ -637,10 +629,10 @@ proof (safe)
   ultimately have "r `` {x} \<subseteq> domain\<^sub>f"
     using closed_domain A_eq_img_singleton_r A_in_dom
     by fastforce
-  hence "\<forall> x' \<in> r `` {x}. (x, x') \<in> Restr r domain\<^sub>f"
+  hence "\<forall> (x' :: 'x) \<in> r `` {x}. (x, x') \<in> Restr r domain\<^sub>f"
     using x_in_dom_and_f_x_y in_mono
     by blast
-  hence "\<forall> x' \<in> r `` {x}. f x' = y"
+  hence "\<forall> (x' :: 'x) \<in> r `` {x}. f x' = y"
     using invar_f x_in_dom_and_f_x_y
     unfolding is_symmetry.simps
     by metis
@@ -661,9 +653,7 @@ proof (safe)
     unfolding preimg.simps
     by blast
 next
-  fix
-    A :: "'x set" and
-    y :: "'y"
+  fix A :: "'x set"
   assume quot_preimg: "A \<in> preimg (\<pi>\<^sub>\<Q> f) (domain\<^sub>f // r) y"
   hence A_in_dom_rel_r: "A \<in> domain\<^sub>f // r"
     using cons_subset equiv_rel
@@ -680,9 +670,9 @@ next
     A_eq_r_img_single_x: "A = r `` {x}"
     using A_in_dom_rel_r equiv_rel cons_subset equiv_class_self in_mono quotientE
     by metis
-  ultimately have "\<forall> x' \<in> A. (x, x') \<in> Restr r domain\<^sub>f"
+  ultimately have "\<forall> (x' :: 'x) \<in> A. (x, x') \<in> Restr r domain\<^sub>f"
     by blast
-  hence "\<forall> x' \<in> A. f x' = f x"
+  hence "\<forall> (x' :: 'x) \<in> A. f x' = f x"
     using invar_f
     by fastforce
   hence "f ` A = {f x}"
@@ -718,7 +708,7 @@ lemma minimizer_helper:
     x :: "'x" and
     y :: "'y"
   shows "y \<in> minimizer f domain\<^sub>f d Y x =
-      (y \<in> Y \<and> (\<forall> y' \<in> Y.
+      (y \<in> Y \<and> (\<forall> (y' :: 'y) \<in> Y.
           Inf (d x ` (preimg f domain\<^sub>f y)) \<le> Inf (d x ` (preimg f domain\<^sub>f y'))))"
   unfolding is_arg_min_def minimizer.simps arg_min_set.simps
   by auto
@@ -737,21 +727,21 @@ lemma rewr_singleton_set_system_union:
 
 lemma union_inf:
   fixes X :: "ereal set set"
-  shows "Inf {Inf A | A. A \<in> X} = Inf (\<Union> X)"
+  shows "Inf {Inf A | (A :: ereal set). A \<in> X} = Inf (\<Union> X)"
 proof -
-  let ?inf = "Inf {Inf A | A. A \<in> X}"
-  have "\<forall> A \<in> X. \<forall> x \<in> A. ?inf \<le> x"
+  let ?inf = "Inf {Inf A | (A :: ereal set). A \<in> X}"
+  have "\<forall> (A :: ereal set) \<in> X. \<forall> (x :: ereal) \<in> A. ?inf \<le> x"
     using INF_lower2 Inf_lower Setcompr_eq_image
     by metis
-  hence "\<forall> x \<in> \<Union> X. ?inf \<le> x"
+  hence "\<forall> (x :: ereal) \<in> \<Union> X. ?inf \<le> x"
     by simp
   hence le: "?inf \<le> Inf (\<Union> X)"
     using Inf_greatest
     by blast
-  have "\<forall> A \<in> X. Inf (\<Union> X) \<le> Inf A"
+  have "\<forall> (A :: ereal set) \<in> X. Inf (\<Union> X) \<le> Inf A"
     using Inf_superset_mono Union_upper
     by metis
-  hence "Inf (\<Union> X) \<le> Inf {Inf A | A. A \<in> X}"
+  hence "Inf (\<Union> X) \<le> Inf {Inf A | (A :: ereal set). A \<in> X}"
     using le_Inf_iff
     by auto
   thus ?thesis
@@ -771,7 +761,7 @@ fun (in result) distance_\<R>\<^sub>\<Q> :: "('a, 'v) Election rel \<Rightarrow>
         ('a, 'v, 'r Result) Consensus_Class \<Rightarrow> ('a, 'v) Election set \<Rightarrow> 'r Result" where
   "distance_\<R>\<^sub>\<Q> r d C A =
     (\<R>\<^sub>\<Q> r d C A,
-      \<pi>\<^sub>\<Q> (\<lambda> E. limit (alternatives_\<E> E) UNIV) A - \<R>\<^sub>\<Q> r d C A,
+      \<pi>\<^sub>\<Q> (\<lambda> (E :: ('a, 'v) Election). limit (alternatives_\<E> E) UNIV) A - \<R>\<^sub>\<Q> r d C A,
       {})"
 
 text \<open>
@@ -788,7 +778,8 @@ theorem (in result) invar_dr_simple_dist_imp_quotient_dr_winners:
     simple: "simple r X d" and
     closed_domain: "closed_restricted_rel r X (elections_\<K> C)" and
     invar_res:
-      "is_symmetry (\<lambda> E. limit (alternatives_\<E> E) UNIV) (Invariance r)" and
+      "is_symmetry (\<lambda> (E :: ('a, 'v) Election).
+        limit (alternatives_\<E> E) UNIV) (Invariance r)" and
     invar_C: "is_symmetry (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C))
                     (Invariance (Restr r (elections_\<K> C)))" and
     invar_dr: "is_symmetry (fun\<^sub>\<E> (\<R>\<^sub>\<W> d C)) (Invariance r)" and
@@ -797,23 +788,19 @@ theorem (in result) invar_dr_simple_dist_imp_quotient_dr_winners:
     cons_subset: "elections_\<K> C \<subseteq> X"
   shows "\<pi>\<^sub>\<Q> (fun\<^sub>\<E> (\<R>\<^sub>\<W> d C)) A = \<R>\<^sub>\<Q> r d C A"
 proof -
-  have preimg_img_imp_cls:
-    "\<forall> y B. B \<in> preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C))) (elections_\<K>\<^sub>\<Q> r C) y
-          \<longrightarrow> B \<in> (elections_\<K> C) // r"
-    by simp
-  have "\<forall> y. \<forall> E
+  have "\<forall> (y :: 'r set). \<forall> (E :: ('a, 'v) Election)
         \<in> preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y. E \<in> r `` {E}"
-    using equiv_rel cons_subset equiv_class_self equiv_rel in_mono
-    unfolding equiv_def preimg.simps
-    by fastforce
-  hence "\<forall> y.
-      \<Union> (preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r) \<supseteq>
-      preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y"
+    unfolding preimg.simps
+    using equiv_rel equiv_class_self cons_subset in_mono mem_Collect_eq
+    by (metis (mono_tags, lifting))
+  hence "\<forall> (y :: 'r set).
+    preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y
+      \<subseteq> \<Union> (preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r)"
     unfolding quotient_def
     by blast
-  moreover have "\<forall> y.
-      \<Union> (preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r) \<subseteq>
-      preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y"
+  moreover have "\<forall> (y :: 'r set).
+      \<Union> (preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r)
+      \<subseteq> preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y"
   proof (intro allI subsetI)
     fix
       Y :: "'r set" and
@@ -828,30 +815,17 @@ proof -
       map_to_Y: "E' \<in> preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) Y"
       using quotientE
       by blast
-    hence in_restr_rel: "(E', E) \<in> r \<inter> (elections_\<K> C) \<times> X"
-      using E_in_B equiv_rel
-      unfolding preimg.simps equiv_def refl_on_def
+    hence "(E', E) \<in> Restr r (elections_\<K> C)"
+      using closed_domain E_in_B equiv_rel
+      unfolding closed_restricted_rel.simps restricted_rel.simps preimg.simps
+                equiv_def refl_on_def
       by blast
-    hence "E \<in> elections_\<K> C"
-      using closed_domain
-      unfolding closed_restricted_rel.simps restricted_rel.simps Image_def
-      by blast
-    hence rel_cons_els: "(E', E) \<in> Restr r (elections_\<K> C)"
-      using in_restr_rel
-      by blast
-    hence "(elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) E = (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) E'"
-      using invar_C
-      unfolding is_symmetry.simps
-      by blast
-    hence "(elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) E = Y"
-      using map_to_Y
-      by simp
     thus "E \<in> preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) Y"
-      unfolding preimg.simps
-      using rel_cons_els
+      using map_to_Y invar_C
+      unfolding preimg.simps is_symmetry.simps
       by blast
   qed
-  ultimately have preimg_partition: "\<forall> y.
+  ultimately have preimg_partition: "\<forall> (y :: 'r set).
       \<Union> (preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r) =
       preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y"
     by blast
@@ -859,99 +833,105 @@ proof -
     using cons_subset
     unfolding quotient_def
     by blast
-  obtain a :: "('a, 'v) Election" where
+  have preimg_img_imp_cls:
+    "\<forall> (y :: 'r set). \<forall> (B :: ('a, 'v) Election set)
+      \<in> preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C))) (elections_\<K>\<^sub>\<Q> r C) y.
+          B \<in> (elections_\<K> C) // r"
+    by simp
+  moreover obtain a :: "('a, 'v) Election" where
     a_in_A: "a \<in> A" and
     a_def_inf_dist:
-      "\<forall> B \<in> X // r.
+      "\<forall> (B :: ('a, 'v) Election set) \<in> X // r.
         distance_infimum\<^sub>\<Q> d A B = Inf {d a b | b. b \<in> B}"
     using simple quot_class
     unfolding simple.simps
     by blast
-  hence inf_dist_preimg_sets:
-    "\<forall> y B. B \<in> preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C))) (elections_\<K>\<^sub>\<Q> r C) y
-          \<longrightarrow> distance_infimum\<^sub>\<Q> d A B = Inf {d a b | b. b \<in> B}"
-    using preimg_img_imp_cls quot_classes_subset
+  ultimately have inf_dist_preimg_sets:
+    "\<forall> (y :: 'r set). \<forall> (B :: ('a, 'v) Election set)
+      \<in> preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C))) (elections_\<K>\<^sub>\<Q> r C) y.
+          distance_infimum\<^sub>\<Q> d A B = Inf {d a b | b. b \<in> B}"
+    using quot_classes_subset
     by blast
   have wf_res_eq: "singleton_set_system (limit (alternatives_\<E> a) UNIV) =
       singleton_set_system (limit\<^sub>\<Q> A UNIV)"
     using invar_res a_in_A quot_class cons_subset equiv_rel limit_invar
     by metis
-  have inf_le_iff: "\<forall> x.
-      (\<forall> y \<in> singleton_set_system (limit (alternatives_\<E> a) UNIV).
-        Inf (d a ` preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) {x})
-        \<le> Inf (d a ` preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y))
-      = (\<forall> y \<in> singleton_set_system (limit\<^sub>\<Q> A UNIV).
-        Inf (distance_infimum\<^sub>\<Q> d A ` preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)))
-                (elections_\<K>\<^sub>\<Q> r C) {x})
-        \<le> Inf (distance_infimum\<^sub>\<Q> d A ` preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)))
-                (elections_\<K>\<^sub>\<Q> r C) y))"
-  proof -
-    have preimg_partition_dist: "\<forall> y.
-        Inf {d a b | b. b \<in>
-            \<Union> (preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r)} =
-        Inf (d a ` preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y)"
-      using Setcompr_eq_image preimg_partition
-      by metis
-    have "\<forall> y.
-        {Inf {d a b | b. b \<in> B}
-          | B. B \<in> preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r}
-      = {Inf E | E. E \<in> {{d a b | b. b \<in> B}
-          | B. B \<in> preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r}}"
-      by blast
-    hence "\<forall> y.
-        Inf {Inf {d a b | b. b \<in> B} | B.
-          B \<in> preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r} =
-        Inf (\<Union> {{d a b | b. b \<in> B} | B.
-          B \<in> (preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r)})"
-      using union_inf
-      by presburger
-    moreover have
-      "\<forall> y.
-        {d a b | b. b \<in> \<Union>
-          (preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C))
-              (elections_\<K> C) y // r)} =
-            \<Union> {{d a b | b. b \<in> B} | B.
-                  B \<in> (preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C))
-                    (elections_\<K> C) y // r)}"
-      by blast
-    ultimately have rewrite_inf_dist:
-      "\<forall> y. Inf {Inf {d a b | b. b \<in> B}
-        | B. B \<in> preimg
-            (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r} =
-      Inf {d a b
-        | b. b \<in> \<Union> (preimg
-            (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r)}"
-      by presburger
-    have "\<forall> y. distance_infimum\<^sub>\<Q> d A ` preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)))
-                  (elections_\<K>\<^sub>\<Q> r C) y =
-      {Inf {d a b | b. b \<in> B}
-          | B. B \<in> preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C))) (elections_\<K>\<^sub>\<Q> r C) y}"
-      using inf_dist_preimg_sets
-      unfolding Image_def
-      by auto
-    moreover have "\<forall> y.
-        {Inf {d a b | b. b \<in> B} | B.
-          B \<in> preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C))) (elections_\<K>\<^sub>\<Q> r C) y} =
-        {Inf {d a b | b. b \<in> B} | B.
-          B \<in> (preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y) // r}"
-      unfolding elections_\<K>\<^sub>\<Q>.simps
-      using preimg_invar closed_domain cons_subset equiv_rel invar_C
-      by blast
-    ultimately have
-      "\<forall> y. Inf (distance_infimum\<^sub>\<Q> d A ` preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)))
-                (elections_\<K>\<^sub>\<Q> r C) y) =
-        Inf {Inf {d a b | b. b \<in> B}
-            | B. B \<in> preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r}"
-      by simp
-    thus ?thesis
-      using wf_res_eq rewrite_inf_dist preimg_partition_dist
-      by presburger
-  qed
-  from a_in_A
-  have "\<pi>\<^sub>\<Q> (fun\<^sub>\<E> (\<R>\<^sub>\<W> d C)) A = fun\<^sub>\<E> (\<R>\<^sub>\<W> d C) a"
-    using invar_dr equiv_rel quot_class pass_to_quotient invariance_is_congruence
+  have preimg_partition_dist: "\<forall> (y :: 'r set).
+      Inf {d a b | (b :: ('a, 'v) Election).
+        b \<in> \<Union> (preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r)}
+    = Inf (d a ` preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y)"
+    using Setcompr_eq_image preimg_partition
+    by metis
+  have "\<forall> (y :: 'r set).
+      {Inf {d a b | (b :: ('a, 'v) Election). b \<in> B} | (B :: ('a, 'v) Election set).
+        B \<in> preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r}
+    = {Inf E | (E :: ereal set). E \<in> {{d a b | (b :: ('a, 'v) Election). b \<in> B} |
+          (B :: ('a, 'v) Election set).
+        B \<in> preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r}}"
     by blast
-  moreover have "\<forall> x. x \<in> fun\<^sub>\<E> (\<R>\<^sub>\<W> d C) a \<longleftrightarrow> x \<in> \<R>\<^sub>\<Q> r d C A"
+  hence "\<forall> (y :: 'r set).
+      Inf {Inf {d a b | (b :: ('a, 'v) Election). b \<in> B} | (B :: ('a, 'v) Election set).
+        B \<in> preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r}
+    = Inf (\<Union> {{d a b | (b :: ('a, 'v) Election). b \<in> B} | (B :: ('a, 'v) Election set).
+        B \<in> (preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r)})"
+    using union_inf
+    by presburger
+  moreover have
+    "\<forall> (y :: 'r set).
+        {d a b | (b :: ('a, 'v) Election).
+          b \<in> \<Union> (preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r)}
+      = \<Union> {{d a b | (b :: ('a, 'v) Election). b \<in> B} | (B :: ('a, 'v) Election set).
+          B \<in> (preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r)}"
+    by blast
+  ultimately have rewrite_inf_dist:
+    "\<forall> (y :: 'r set).
+      Inf
+        {Inf {d a b | (b :: ('a, 'v) Election). b \<in> B} | (B :: ('a, 'v) Election set).
+          B \<in> preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r}
+    = Inf {d a b | (b :: ('a, 'v) Election).
+        b \<in> \<Union> (preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r)}"
+    by presburger
+  have "\<forall> (y :: 'r set).
+      distance_infimum\<^sub>\<Q> d A ` preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C))) (elections_\<K>\<^sub>\<Q> r C) y
+    = {Inf {d a b | (b :: ('a, 'v) Election). b \<in> B} | (B :: ('a, 'v) Election set).
+        B \<in> preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C))) (elections_\<K>\<^sub>\<Q> r C) y}"
+    using inf_dist_preimg_sets
+    unfolding Image_def
+    by auto
+  moreover have
+    "\<forall> (R :: 'r set).
+        preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C))) (elections_\<K> C // r) R
+      = preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) R // r"
+    using closed_domain cons_subset equiv_rel invar_C preimg_invar
+    by (metis (no_types))
+  hence "\<forall> (y :: 'r set).
+      {Inf {d a b | (b :: ('a, 'v) Election). b \<in> B} | (B :: ('a, 'v) Election set).
+        B \<in> preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C))) (elections_\<K>\<^sub>\<Q> r C) y}
+    = {Inf {d a b | (b :: ('a, 'v) Election). b \<in> B} | (B :: ('a, 'v) Election set).
+        B \<in> (preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y) // r}"
+    unfolding elections_\<K>\<^sub>\<Q>.simps
+    by presburger
+  ultimately have
+    "\<forall> (y :: 'r set).
+      Inf (distance_infimum\<^sub>\<Q> d A ` preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C))) (elections_\<K>\<^sub>\<Q> r C) y)
+    = Inf {Inf {d a b | (b :: ('a, 'v) Election). b \<in> B} | (B :: ('a, 'v) Election set).
+        B \<in> preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y // r}"
+    by simp
+  hence inf_le_iff: "\<forall> (x :: 'r).
+      (\<forall> (y :: 'r set) \<in> singleton_set_system (limit (alternatives_\<E> a) UNIV).
+          Inf (d a ` preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) {x})
+        \<le> Inf (d a ` preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y))
+    = (\<forall> (y :: 'r set) \<in> singleton_set_system (limit\<^sub>\<Q> A UNIV).
+          Inf (distance_infimum\<^sub>\<Q> d A ` preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)))
+            (elections_\<K>\<^sub>\<Q> r C) {x})
+        \<le> Inf (distance_infimum\<^sub>\<Q> d A ` preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)))
+            (elections_\<K>\<^sub>\<Q> r C) y))"
+    using wf_res_eq rewrite_inf_dist preimg_partition_dist
+    by presburger
+  have "\<pi>\<^sub>\<Q> (fun\<^sub>\<E> (\<R>\<^sub>\<W> d C)) A = fun\<^sub>\<E> (\<R>\<^sub>\<W> d C) a"
+    using a_in_A invar_dr equiv_rel quot_class pass_to_quotient invariance_is_congruence
+    by blast
+  moreover have "\<forall> (x :: 'r). x \<in> fun\<^sub>\<E> (\<R>\<^sub>\<W> d C) a \<longleftrightarrow> x \<in> \<R>\<^sub>\<Q> r d C A"
   proof
     fix x :: "'r"
     have "x \<in> fun\<^sub>\<E> (\<R>\<^sub>\<W> d C) a =
@@ -966,13 +946,13 @@ proof -
       unfolding minimizer.simps arg_min_set.simps is_arg_min_def
       by auto
     also have "\<dots> = ({x} \<in> singleton_set_system (limit (alternatives_\<E> a) UNIV)
-        \<and> (\<forall> y \<in> singleton_set_system (limit (alternatives_\<E> a) UNIV).
+        \<and> (\<forall> (y :: 'r set) \<in> singleton_set_system (limit (alternatives_\<E> a) UNIV).
             Inf (d a ` preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) {x})
           \<le> Inf (d a ` preimg (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)) (elections_\<K> C) y)))"
       using minimizer_helper
       by (metis (no_types, lifting))
     also have "\<dots> = ({x} \<in> singleton_set_system (limit\<^sub>\<Q> A UNIV)
-      \<and> (\<forall> y \<in> singleton_set_system (limit\<^sub>\<Q> A UNIV).
+      \<and> (\<forall> (y :: 'r set) \<in> singleton_set_system (limit\<^sub>\<Q> A UNIV).
         Inf (distance_infimum\<^sub>\<Q> d A ` preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)))
               (elections_\<K>\<^sub>\<Q> r C) {x})
         \<le> Inf (distance_infimum\<^sub>\<Q> d A ` preimg (\<pi>\<^sub>\<Q> (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C)))
@@ -1012,7 +992,8 @@ theorem (in result) invar_dr_simple_dist_imp_quotient_dr:
     simple: "simple r X d" and
     closed_domain: "closed_restricted_rel r X (elections_\<K> C)" and
     invar_res:
-      "is_symmetry (\<lambda> E. limit (alternatives_\<E> E) UNIV) (Invariance r)" and
+      "is_symmetry (\<lambda> (E :: ('a, 'v) Election).
+        limit (alternatives_\<E> E) UNIV) (Invariance r)" and
     invar_C: "is_symmetry (elect_r \<circ> fun\<^sub>\<E> (rule_\<K> C))
                   (Invariance (Restr r (elections_\<K> C)))" and
     invar_dr: "is_symmetry (fun\<^sub>\<E> (\<R>\<^sub>\<W> d C)) (Invariance r)" and
@@ -1021,32 +1002,32 @@ theorem (in result) invar_dr_simple_dist_imp_quotient_dr:
     cons_subset: "elections_\<K> C \<subseteq> X"
   shows "\<pi>\<^sub>\<Q> (fun\<^sub>\<E> (distance_\<R> d C)) A = distance_\<R>\<^sub>\<Q> r d C A"
 proof -
-  have "\<forall> E. fun\<^sub>\<E> (distance_\<R> d C) E =
+  have "\<forall> (E :: ('a, 'v) Election). fun\<^sub>\<E> (distance_\<R> d C) E =
           (fun\<^sub>\<E> (\<R>\<^sub>\<W> d C) E,
             limit (alternatives_\<E> E) UNIV - fun\<^sub>\<E> (\<R>\<^sub>\<W> d C) E,
             {})"
     by simp
-  moreover have "\<forall> E \<in> A. fun\<^sub>\<E> (\<R>\<^sub>\<W> d C) E = \<pi>\<^sub>\<Q> (fun\<^sub>\<E> (\<R>\<^sub>\<W> d C)) A"
+  moreover have "\<forall> (E :: ('a, 'v) Election) \<in> A. fun\<^sub>\<E> (\<R>\<^sub>\<W> d C) E = \<pi>\<^sub>\<Q> (fun\<^sub>\<E> (\<R>\<^sub>\<W> d C)) A"
     using invar_dr invariance_is_congruence pass_to_quotient quot_class equiv_rel
     by blast
   moreover have "\<pi>\<^sub>\<Q> (fun\<^sub>\<E> (\<R>\<^sub>\<W> d C)) A = \<R>\<^sub>\<Q> r d C A"
     using invar_dr_simple_dist_imp_quotient_dr_winners assms
     by blast
   moreover have
-    "\<forall> E \<in> A. limit (alternatives_\<E> E) UNIV =
-        \<pi>\<^sub>\<Q> (\<lambda> E. limit (alternatives_\<E> E) UNIV) A"
+    "\<forall> (E :: ('a, 'v) Election) \<in> A. limit (alternatives_\<E> E) UNIV =
+        \<pi>\<^sub>\<Q> (\<lambda> (E :: ('a, 'v) Election). limit (alternatives_\<E> E) UNIV) A"
     using invar_res invariance_is_congruence' pass_to_quotient quot_class equiv_rel
     by blast
   ultimately have all_eq:
-    "\<forall> E \<in> A. fun\<^sub>\<E> (distance_\<R> d C) E =
+    "\<forall> (E :: ('a, 'v) Election) \<in> A. fun\<^sub>\<E> (distance_\<R> d C) E =
       (\<R>\<^sub>\<Q> r d C A,
-        \<pi>\<^sub>\<Q> (\<lambda> E. limit (alternatives_\<E> E) UNIV) A - \<R>\<^sub>\<Q> r d C A,
+        \<pi>\<^sub>\<Q> (\<lambda> (E :: ('a, 'v) Election). limit (alternatives_\<E> E) UNIV) A - \<R>\<^sub>\<Q> r d C A,
         {})"
     by fastforce
   hence
     "fun\<^sub>\<E> (distance_\<R> d C) ` A \<subseteq>
       {(\<R>\<^sub>\<Q> r d C A,
-        \<pi>\<^sub>\<Q> (\<lambda> E. limit (alternatives_\<E> E) UNIV) A - \<R>\<^sub>\<Q> r d C A,
+        \<pi>\<^sub>\<Q> (\<lambda> (E :: ('a, 'v) Election). limit (alternatives_\<E> E) UNIV) A - \<R>\<^sub>\<Q> r d C A,
         {})}"
     by blast
   moreover have "A \<noteq> {}"
@@ -1054,7 +1035,7 @@ proof -
     by metis
   ultimately have single_img:
     "{(\<R>\<^sub>\<Q> r d C A,
-        \<pi>\<^sub>\<Q> (\<lambda> E. limit (alternatives_\<E> E) UNIV) A - \<R>\<^sub>\<Q> r d C A,
+        \<pi>\<^sub>\<Q> (\<lambda> (E :: ('a, 'v) Election). limit (alternatives_\<E> E) UNIV) A - \<R>\<^sub>\<Q> r d C A,
         {})} =
       fun\<^sub>\<E> (distance_\<R> d C) ` A"
     using empty_is_image subset_singletonD
@@ -1063,9 +1044,9 @@ proof -
     using is_singleton_altdef is_singletonI
     by (metis (no_types, lifting))
   moreover from this
-  have "the_inv (\<lambda> x. {x}) (fun\<^sub>\<E> (distance_\<R> d C) ` A) =
+  have "the_inv (\<lambda> (x :: 'r Result). {x}) (fun\<^sub>\<E> (distance_\<R> d C) ` A) =
           (\<R>\<^sub>\<Q> r d C A,
-            \<pi>\<^sub>\<Q> (\<lambda> E. limit (alternatives_\<E> E) UNIV) A - \<R>\<^sub>\<Q> r d C A,
+            \<pi>\<^sub>\<Q> (\<lambda> (E :: ('a, 'v) Election). limit (alternatives_\<E> E) UNIV) A - \<R>\<^sub>\<Q> r d C A,
             {})"
     using single_img singleton_insert_inj_eq singleton_set.elims
           singleton_set_def_if_card_one

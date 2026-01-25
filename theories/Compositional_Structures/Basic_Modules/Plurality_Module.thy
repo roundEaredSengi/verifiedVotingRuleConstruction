@@ -288,8 +288,8 @@ proof -
     by (simp add: card_mono)
   show "defer plurality V A q = defer plurality V A p
         \<or> defer plurality V A q = {a}"
-  proof (cases)
-    assume "win_count V p a = win_count V q a"
+  proof (cases "win_count V p a = win_count V q a")
+    case True
     hence "card {i \<in> V. above (p i) a = {a}} = card {i \<in> V. above (q i) a = {a}}"
       using win_count.simps Profile.lifted_def enat.inject lift_a
       by (metis (mono_tags, lifting))
@@ -357,7 +357,7 @@ proof -
     thus ?thesis
       by simp
   next
-    assume "win_count V p a \<noteq> win_count V q a"
+    case False
     hence strict_less: "win_count V p a < win_count V q a"
       using win_count_a
       by simp

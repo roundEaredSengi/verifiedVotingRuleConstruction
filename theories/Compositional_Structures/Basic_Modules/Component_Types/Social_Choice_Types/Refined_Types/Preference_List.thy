@@ -252,7 +252,6 @@ fun rank_l_idx :: "'a Preference_List \<Rightarrow> 'a \<Rightarrow> nat" where
       if i = length l then 0 else i + 1)"
 
 lemma rank_l_equiv: "rank_l = rank_l_idx"
-  unfolding member_def
   by (simp add: ext index_size_conv)
 
 lemma rank_zero_imp_not_present:
@@ -303,17 +302,18 @@ proof (cases "A = {}", unfold linear_order_on_def total_on_def
   case True
   fix x y :: "'a"
   show
+    "r \<subseteq> A \<times> A" and
     "refl_on A r" and
     "trans r" and
     "(x, y) \<in> r \<Longrightarrow> x = y" and
     "x \<in> A \<Longrightarrow> (x, y) \<in> r \<or> (y, x) \<in> r"
     using assms True
     unfolding pl_\<alpha>_def
-    by (simp, simp, simp, simp)
+    by (simp, simp, simp, simp, simp)
 next
   case False
   fix x y :: "'a"
-  show "((refl_on A r \<and> trans r)
+  show "((r \<subseteq> A \<times> A \<and> refl_on A r \<and> trans r)
       \<and> (\<forall> x y. (x, y) \<in> r \<longrightarrow> (y, x) \<in> r \<longrightarrow> x = y))
       \<and> (\<forall> x \<in> A. \<forall> y \<in> A. x \<noteq> y \<longrightarrow> (x, y) \<in> r \<or> (y, x) \<in> r)"
   proof (intro conjI ballI allI impI)
@@ -327,14 +327,13 @@ next
     hence "\<forall> a \<in> A. (a, a) \<in> r"
       using assms
       by blast
-    moreover have "r \<subseteq> A \<times> A"
+    moreover show "r \<subseteq> A \<times> A"
       using assms
       unfolding pl_\<alpha>_def permutations_of_set_def
       by auto
     ultimately show "refl_on A r"
       unfolding refl_on_def
       by safe
-  next
     show "trans r"
       using assms rel_trans
       by safe
@@ -748,7 +747,7 @@ next
     ultimately have
       "b \<in> set (a#l)" and
       "c \<in> set (a#l)"
-      using case_prodD filter_set mem_Collect_eq member_filter
+      using case_prodD mem_Collect_eq filter_is_subset subsetD
             is_less_preferred_than_l.simps
       unfolding pl_\<alpha>_def
       by (metis, metis)
@@ -1031,7 +1030,7 @@ proof (unfold rank_l.simps rank.simps, cases "a \<in> set l")
   moreover have "length (above_l l a) = rank_l l a"
     unfolding above_l_def
     using Suc_le_eq
-    by (simp add: in_set_member)
+    by simp
   ultimately show
     "(if a \<in> set l then index l a + 1 else 0) =
         card (above (pl_\<alpha> l) a)"
@@ -1094,7 +1093,7 @@ lemma ranked_alt_not_at_pos_before:
     "a \<in> set l" and
     "n < (rank_l l a) - 1"
   shows "l!n \<noteq> a"
-  using index_first member_def rank_l.simps
+  using index_first rank_l.simps
         assms add_diff_cancel_right'
   by metis
 

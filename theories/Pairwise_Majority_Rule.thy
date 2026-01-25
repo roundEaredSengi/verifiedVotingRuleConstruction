@@ -22,11 +22,11 @@ subsection \<open>Definition\<close>
 fun pairwise_majority_rule :: "('a, 'v, 'a Result) Electoral_Module" where
   "pairwise_majority_rule V A p = elector condorcet V A p"
 
-fun condorcet' :: "('a, 'v, 'a Result) Electoral_Module" where
-  "condorcet' V A p = ((min_eliminator condorcet_score) \<circlearrowleft>\<^sub>\<exists>\<^sub>!\<^sub>d) V A p"
+fun elim_leq_condorcet :: "('a, 'v, 'a Result) Electoral_Module" where
+  "elim_leq_condorcet V A p = ((min_eliminator condorcet_score) \<circlearrowleft>\<^sub>\<exists>\<^sub>!\<^sub>d) V A p"
 
 fun pairwise_majority_rule' :: "('a, 'v, 'a Result) Electoral_Module" where
-  "pairwise_majority_rule' V A p = iter_elect condorcet' V A p"
+  "pairwise_majority_rule' V A p = iter_elect elim_leq_condorcet V A p"
 
 subsection \<open>Soundness\<close>
 
@@ -35,9 +35,9 @@ theorem pairwise_majority_rule_sound: "\<S>\<C>\<F>_result.electoral_module pair
   using condorcet_sound elector_sound
   by metis
 
-theorem condorcet'_sound: "\<S>\<C>\<F>_result.electoral_module condorcet'"
+theorem condorcet'_sound: "\<S>\<C>\<F>_result.electoral_module elim_leq_condorcet"
   using Defer_One_Loop_Composition.iter.elims loop_comp_sound min_elim_sound
-  unfolding condorcet'.simps loop_comp_sound
+  unfolding elim_leq_condorcet.simps loop_comp_sound
   by metis
 
 theorem pairwise_majority_rule'_sound: "\<S>\<C>\<F>_result.electoral_module pairwise_majority_rule'"
@@ -47,7 +47,7 @@ theorem pairwise_majority_rule'_sound: "\<S>\<C>\<F>_result.electoral_module pai
 
 subsection \<open>Condorcet Consistency\<close>
 
-theorem condorcet_condorcet: "condorcet_consistency pairwise_majority_rule"
+theorem pairwise_majority_rule_condorcet: "condorcet_consistency pairwise_majority_rule"
 proof (unfold pairwise_majority_rule.simps)
   show "condorcet_consistency (elector condorcet)"
     using condorcet_is_dcc dcc_imp_cc_elector
