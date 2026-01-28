@@ -933,6 +933,17 @@ lemma anonymity_homogeneity_is_equivalence:
   assumes "\<forall> E \<in> X. finite (voters_\<E> E)"
   shows "equiv X (anonymity_homogeneity\<^sub>\<R> X)"
 proof (unfold equiv_def, safe)
+  fix
+    A B :: "'a set" and
+    V W :: "'v set" and
+    p q :: "'v \<Rightarrow> ('a \<times> 'a) set"
+  assume "((A, V, p), B, W, q) \<in> anonymity_homogeneity\<^sub>\<R> X"
+  thus
+    "(A, V, p) \<in> X" and
+    "(B, W, q) \<in> X"
+    unfolding anonymity_homogeneity\<^sub>\<R>.simps
+    by simp_all
+next
   show "refl_on X (anonymity_homogeneity\<^sub>\<R> X)"
     unfolding refl_on_def anonymity_homogeneity\<^sub>\<R>.simps
     by blast

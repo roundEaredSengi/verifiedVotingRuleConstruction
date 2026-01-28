@@ -24,8 +24,9 @@ text \<open>
 
 subsection \<open>Definition\<close>
 
-fun smc :: "'a Preference_Relation \<Rightarrow> ('a, 'v, 'a Result) Electoral_Module" where
-  "smc x V A p =
+fun sequential_majority_comparison :: "'a Preference_Relation \<Rightarrow>
+          ('a, 'v, 'a Result) Electoral_Module" where
+  "sequential_majority_comparison x V A p =
       ((elector ((((pass_module 2 x) \<triangleright> ((plurality_rule\<down>) \<triangleright> (pass_module 1 x))) \<parallel>\<^sub>\<up>
       (drop_module 2 x)) \<circlearrowleft>\<^sub>\<exists>\<^sub>!\<^sub>d)) V A p)"
 
@@ -37,9 +38,9 @@ text \<open>
   sequential majority comparison is also an electoral module.
 \<close>
 
-theorem smc_sound:
+theorem sequential_majority_comparison_sound:
   fixes x :: "'a Preference_Relation"
-  shows "\<S>\<C>\<F>_result.electoral_module (smc x)"
+  shows "\<S>\<C>\<F>_result.electoral_module (sequential_majority_comparison x)"
 proof (unfold \<S>\<C>\<F>_result.electoral_module.simps well_formed_\<S>\<C>\<F>.simps, safe)
   fix
     A :: "'a set" and
@@ -47,12 +48,13 @@ proof (unfold \<S>\<C>\<F>_result.electoral_module.simps well_formed_\<S>\<C>\<F
     p :: "('a, 'v) Profile"
   assume "profile V A p"
   thus
-    "disjoint3 (smc x V A p)" and
-    "set_equals_partition A (smc x V A p)"
-    unfolding iter.simps smc.simps elector.simps
+    "disjoint3 (sequential_majority_comparison x V A p)" and
+    "set_equals_partition A (sequential_majority_comparison x V A p)"
+    unfolding iter.simps sequential_majority_comparison.simps elector.simps
     using drop_mod_sound elect_mod_sound loop_comp_sound max_par_comp_sound
           pass_mod_sound plurality_rule_sound rev_comp_sound seq_comp_sound
-    by (metis (no_types) seq_comp_presv_disj, metis (no_types) seq_comp_presv_alts)
+    by (metis (no_types) seq_comp_presv_disj,
+        metis (no_types) seq_comp_presv_alts)
 qed
 
 subsection \<open>Electing\<close>
@@ -64,10 +66,10 @@ text \<open>
   monotonicity proof below.
 \<close>
 
-theorem smc_electing:
+theorem sequential_majority_comparison_electing:
   fixes x :: "'a Preference_Relation"
   assumes "linear_order x"
-  shows "electing (smc x)"
+  shows "electing (sequential_majority_comparison x)"
 proof -
   let ?pass2 = "pass_module 2 x"
   let ?tie_breaker = "(pass_module 1 x)"
@@ -137,9 +139,9 @@ proof -
   have 3: "electing elect_module"
     by simp
   show ?thesis
-    using 2 3 assms seq_comp_electing smc_sound
-    unfolding Defer_One_Loop_Composition.iter.simps
-              smc.simps elector.simps electing_def
+    using 2 3 assms seq_comp_electing sequential_majority_comparison_sound
+    unfolding Defer_One_Loop_Composition.iter.simps sequential_majority_comparison.simps
+              elector.simps electing_def
     by metis
 qed
 
@@ -150,10 +152,10 @@ text \<open>
   sequential majority comparison. It is composed of many small steps.
 \<close>
 
-theorem smc_monotone:
+theorem sequential_majority_comparison_monotone:
   fixes x :: "'a Preference_Relation"
   assumes "linear_order x"
-  shows "monotonicity (smc x)"
+  shows "monotonicity (sequential_majority_comparison x)"
 proof -
   let ?pass2 = "pass_module 2 x"
   let ?tie_breaker = "pass_module 1 x"
@@ -253,9 +255,9 @@ proof -
     by simp
   show ?thesis
     using 0 1 2 3 assms seq_comp_mono
-    unfolding Electoral_Module.monotonicity_def elector.simps
-              Defer_One_Loop_Composition.iter.simps
-              smc_sound smc.simps
+    unfolding Electoral_Module.monotonicity_def Defer_One_Loop_Composition.iter.simps
+              elector.simps sequential_majority_comparison_sound
+              sequential_majority_comparison.simps
     by (metis (full_types))
 qed
 

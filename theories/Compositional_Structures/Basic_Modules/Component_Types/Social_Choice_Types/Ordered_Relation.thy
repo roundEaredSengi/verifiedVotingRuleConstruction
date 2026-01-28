@@ -37,9 +37,16 @@ proof -
     using set_l
     unfolding total_on_def pl_\<alpha>_def is_less_preferred_than_l.simps
     by force
-  ultimately have "linear_order_on X ?r"
-    unfolding linear_order_on_def preorder_on_def partial_order_on_def
-    by blast
+  ultimately have "pl_\<alpha> l \<subseteq> X \<times> X"
+    using lin_ord_equiv lin_order_equiv_list_of_alts linear_order_on_def set_l
+          partial_order_onD(4)
+    by metis
+  hence "linear_order_on_l X l"
+    unfolding lin_order_equiv_list_of_alts set_l
+    by metis
+  hence "linear_order_on X ?r"
+    unfolding lin_ord_equiv
+    by metis
   moreover assume
     "\<And> ord. linear_order_on X ord \<Longrightarrow> ?thesis"
   ultimately show ?thesis

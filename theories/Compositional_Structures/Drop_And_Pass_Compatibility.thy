@@ -116,7 +116,7 @@ next
   hence bij_inv: "bij_betw ?inv_rank {1 .. card A} A"
     using bij_betw_the_inv_into
     by blast
-  hence "\<forall> S \<subseteq> {1..card A}. card (?inv_rank ` S) = card S"
+  hence "\<forall> S \<subseteq> {1 .. card A}. card (?inv_rank ` S) = card S"
     using fin_A bij_betw_same_card bij_betw_subset
     by metis
   moreover have subset: "{1 .. n} \<subseteq> {1 .. card A}"
@@ -125,12 +125,12 @@ next
   ultimately have "card (?inv_rank ` {1 .. n}) = n"
     using numeral_One numeral_eq_iff card_atLeastAtMost diff_Suc_1
     by presburger
-  also have "?inv_rank ` {1..n} = {a \<in> A. rank (limit A r) a \<in> {1 .. n}}"
+  also have "?inv_rank ` {1 .. n} = {a \<in> A. rank (limit A r) a \<in> {1 .. n}}"
   proof
-    show "?inv_rank ` {1..n} \<subseteq> {a \<in> A. rank (limit A r) a \<in> {1 .. n}}"
+    show "?inv_rank ` {1 .. n} \<subseteq> {a \<in> A. rank (limit A r) a \<in> {1 .. n}}"
     proof
       fix a :: "'a"
-      assume "a \<in> ?inv_rank ` {1..n}"
+      assume "a \<in> ?inv_rank ` {1 .. n}"
       then obtain b :: "nat" where
         b_img: "b \<in> {1 .. n} \<and> ?inv_rank b = a"
         by auto
@@ -153,7 +153,7 @@ next
       fix a :: "'a"
       assume el: "a \<in> {a \<in> A. rank (limit A r) a \<in> {1 .. n}}"
       then obtain b :: "nat" where
-        b_img: "b \<in> {1..n} \<and> rank (limit A r) a = b"
+        b_img: "b \<in> {1 .. n} \<and> rank (limit A r) a = b"
         by auto
       moreover have "a \<in> A"
         using el
@@ -209,14 +209,16 @@ next
   then obtain p :: "('a, 'b) Profile" where
     "profile V A p"
     by blast
-  show "\<exists> B \<subseteq> A. (\<forall> a \<in> B. indep_of_alt (drop_module n r) V A a \<and>
-                         (\<forall> p. profile V A p \<longrightarrow> a \<in> reject (drop_module n r) V A p)) \<and>
-            (\<forall> a \<in> A - B. indep_of_alt (pass_module n r) V A a \<and>
-                      (\<forall> p. profile V A p \<longrightarrow> a \<in> reject (pass_module n r) V A p))"
+  show "\<exists> (B :: 'a set) \<subseteq> A.
+      (\<forall> a \<in> B. indep_of_alt (drop_module n r) V A a \<and>
+        (\<forall> p'. profile V A p' \<longrightarrow> a \<in> reject (drop_module n r) V A p'))
+    \<and> (\<forall> a \<in> A - B. indep_of_alt (pass_module n r) V A a \<and>
+        (\<forall> (p' :: ('a, 'b) Profile).
+          profile V A p' \<longrightarrow> a \<in> reject (pass_module n r) V A p'))"
   proof
     have same_A:
-      "\<forall> p q. (profile V A p \<and> profile V A q) \<longrightarrow>
-        reject (drop_module n r) V A p = reject (drop_module n r) V A q"
+      "\<forall> p' q'. (profile V A p' \<and> profile V A q') \<longrightarrow>
+        reject (drop_module n r) V A p' = reject (drop_module n r) V A q'"
       by auto
     let ?A = "reject (drop_module n r) V A p"
     have "?A \<subseteq> A"
@@ -226,22 +228,20 @@ next
       unfolding drop_module.simps indep_of_alt_def
       by (metis (mono_tags, lifting))
     moreover have
-      "\<forall> a \<in> ?A. \<forall> p. profile V A p
-          \<longrightarrow> a \<in> reject (drop_module n r) V A p"
+      "\<forall> a \<in> ?A. \<forall> p'. profile V A p' \<longrightarrow> a \<in> reject (drop_module n r) V A p'"
       by auto
     moreover have "\<forall> a \<in> A - ?A. indep_of_alt (pass_module n r) V A a"
       using assms pass_mod_sound
       unfolding pass_module.simps indep_of_alt_def
       by metis
     moreover have
-      "\<forall> a \<in> A - ?A. \<forall> p.
-        profile V A p \<longrightarrow> a \<in> reject (pass_module n r) V A p"
+      "\<forall> a \<in> A - ?A. \<forall> p'. profile V A p' \<longrightarrow> a \<in> reject (pass_module n r) V A p'"
       by auto
     ultimately show "?A \<subseteq> A \<and>
         (\<forall> a \<in> ?A. indep_of_alt (drop_module n r) V A a \<and>
-          (\<forall> p. profile V A p \<longrightarrow> a \<in> reject (drop_module n r) V A p)) \<and>
+          (\<forall> p'. profile V A p' \<longrightarrow> a \<in> reject (drop_module n r) V A p')) \<and>
         (\<forall> a \<in> A - ?A. indep_of_alt (pass_module n r) V A a \<and>
-          (\<forall> p. profile V A p \<longrightarrow> a \<in> reject (pass_module n r) V A p))"
+          (\<forall> p'. profile V A p' \<longrightarrow> a \<in> reject (pass_module n r) V A p'))"
       by simp
   qed
 qed

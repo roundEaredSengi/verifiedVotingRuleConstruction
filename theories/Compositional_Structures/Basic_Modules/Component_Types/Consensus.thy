@@ -310,8 +310,8 @@ proof (unfold well_formed_elections_def consensus_neutrality.simps is_symmetry.s
        unfold split_paired_all neutrality\<^sub>\<R>.simps action_induced_rel.simps
        voters_\<E>.simps alternatives_\<E>.simps profile_\<E>.simps \<phi>_neutral.simps
        extensional_continuation.simps equal_vote\<^sub>\<C>.simps equal_vote\<^sub>\<C>'.simps
-       alternatives_rename.simps case_prod_unfold mem_Collect_eq fst_conv
-       snd_conv mem_Sigma_iff conj_assoc If_def simp_thms, safe)
+       alts_rename.simps case_prod_unfold mem_Collect_eq fst_conv snd_conv
+       mem_Sigma_iff conj_assoc If_def simp_thms, safe)
   fix
     A A' :: "'a set" and
     V V' :: "'v set" and

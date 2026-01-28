@@ -80,7 +80,6 @@ lemma unanimity'_consensus_imp_elect_fst_mod_well_formed:
               \<and> equal_top\<^sub>\<C>' a c) elect_first_module"
 proof (unfold well_formed_def, safe)
   fix
-    a :: "'a" and
     A :: "'a set" and
     V V' :: "'v :: wellorder set" and
     p p' :: "('a, 'v) Profile"
@@ -99,47 +98,45 @@ proof (unfold well_formed_def, safe)
     cond_Ap': "?cond (A, V', p')"
     by simp_all
   have "\<forall> a' \<in> A.
-    ((above (p (least V)) a' = {a'}) = (above (p' (least V')) a' = {a'}))"
-  proof
+    a' \<noteq> a \<longrightarrow> (above (p (least V)) a' = {a'}) = (above (p' (least V')) a' = {a'})"
+  proof (clarify)
     fix a' :: "'a"
-    assume a'_in_A: "a' \<in> A"
-    show "(above (p (least V)) a' = {a'}) = (above (p' (least V')) a' = {a'})"
-    proof (cases)
-      assume "a' = a"
-      thus ?thesis
-        using cond_Ap cond_Ap' Collect_mem_eq LeastI empty_Collect_eq equal_top\<^sub>\<C>'.simps
-              nonempty_profile\<^sub>\<C>.simps least.simps
-        by (metis (no_types, lifting))
-    next
-      assume a'_neq_a: "a' \<noteq> a"
-      have non_empty: "V \<noteq> {} \<and> V' \<noteq> {}"
-        using not_empty_p not_empty_p'
-        by simp
-      hence "A \<noteq> {} \<and> linear_order_on A (p (least V))
-                \<and> linear_order_on A (p' (least V'))"
-        using not_empty_A not_empty_A' prof_p prof_p' enumerate_0
-              a'_in_A card.remove enumerate_in_set finite_enumerate_in_set
-              least.elims all_not_in_conv zero_less_Suc
-        unfolding profile_def
-        by metis
-      hence "(a \<in> above (p (least V)) a' \<or> a' \<in> above (p (least V)) a)
-          \<and> (a \<in> above (p' (least V')) a' \<or> a' \<in> above (p' (least V')) a)"
-        using a'_in_A a'_neq_a eq_top_p
-        unfolding above_def linear_order_on_def total_on_def
-        by auto
-      hence
-        "(above (p (least V)) a = {a} \<and> above (p (least V)) a' = {a'}
-            \<longrightarrow> a = a')
-        \<and> (above (p' (least V')) a = {a} \<and> above (p' (least V')) a' = {a'}
-            \<longrightarrow> a = a')"
-        by auto
-      thus ?thesis
-        using bot_nat_0.not_eq_extremum card_0_eq cond_Ap cond_Ap'
-              enumerate_0 enumerate_in_set equal_top\<^sub>\<C>'.simps
-              finite_enumerate_in_set non_empty least.simps
-        by metis
-    qed
+    assume
+      a'_in_A: "a' \<in> A" and
+      a'_not_a: "a' \<noteq> a"
+    have non_empty: "V \<noteq> {} \<and> V' \<noteq> {}"
+      using not_empty_p not_empty_p'
+      by simp
+    hence "A \<noteq> {} \<and> linear_order_on A (p (least V))
+              \<and> linear_order_on A (p' (least V'))"
+      using not_empty_A not_empty_A' prof_p prof_p' enumerate_0
+            card.remove enumerate_in_set finite_enumerate_in_set
+            least.elims all_not_in_conv zero_less_Suc
+      unfolding profile_def nonempty_set\<^sub>\<C>.simps
+      by metis
+    hence "(a \<in> above (p (least V)) a' \<or> a' \<in> above (p (least V)) a)
+        \<and> (a \<in> above (p' (least V')) a' \<or> a' \<in> above (p' (least V')) a)"
+      using eq_top_p a'_in_A a'_not_a
+      unfolding above_def linear_order_on_def total_on_def
+      by simp
+    hence
+      "(above (p (least V)) a = {a} \<and> above (p (least V)) a' = {a'}
+          \<longrightarrow> a = a')
+      \<and> (above (p' (least V')) a = {a} \<and> above (p' (least V')) a' = {a'}
+          \<longrightarrow> a = a')"
+      by auto
+    thus "(above (p (Elect_First_Module.least V)) a' = {a'}) =
+          (above (p' (Elect_First_Module.least V')) a' = {a'})"
+      using bot_nat_0.not_eq_extremum card_0_eq cond_Ap cond_Ap'
+            enumerate_0 enumerate_in_set equal_top\<^sub>\<C>'.simps
+            finite_enumerate_in_set non_empty least.simps
+      by metis
   qed
+  hence "\<forall> a' \<in> A.
+    (above (p (least V)) a' = {a'}) = (above (p' (least V')) a' = {a'})"
+    using Collect_mem_eq LeastI cond_Ap cond_Ap' empty_Collect_eq least.simps
+    unfolding nonempty_profile\<^sub>\<C>.simps equal_top\<^sub>\<C>'.simps
+    by (metis (no_types, lifting))
   thus "elect_first_module V A p = elect_first_module V' A p'"
     by auto
 qed
@@ -516,7 +513,7 @@ proof (unfold rewrite_equivariance, clarify)
   moreover have "\<forall> a \<in> \<pi> ` A. \<forall> b.
     ((\<pi> (the_inv \<pi> a), \<pi> b) \<in> {(\<pi> x, \<pi> y) | x y. (x, y) \<in> p (least V)}) =
       ((the_inv \<pi> a, b) \<in> {(x, y) | x y. (x, y) \<in> p (least V)})"
-    using bijective_\<pi> rel_rename_helper[of \<pi>]
+    using bijective_\<pi> bij_rename_equiv[of \<pi>]
     by auto
   moreover have "{(x, y) | x y. (x, y) \<in> p (least V)} = p (least V)"
     by simp
@@ -669,7 +666,7 @@ proof (unfold closed_restricted_rel.simps restricted_rel.simps neutrality\<^sub>
     unfolding finite_elections_def
     by (metis (mono_tags, lifting))
   moreover have "V' = V \<and> A' = \<pi> ` A"
-    using img fin alternatives_rename.elims fstI prof sndI
+    using img fin alts_rename.elims fstI prof sndI
     unfolding extensional_continuation.simps \<phi>_neutral.simps
               alternatives_\<E>.simps voters_\<E>.simps
     by (metis (no_types, lifting))

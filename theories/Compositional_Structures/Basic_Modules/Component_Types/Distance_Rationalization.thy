@@ -538,7 +538,8 @@ proof -
     hence "Inf (d (A, V, p) `
           (\<K>\<^sub>\<E> K w \<inter> Pair A ` Pair V `
             {p'. finite_profile V A p'})) = \<infinity>"
-      using eq_intersect top_ereal_def
+      unfolding eq_intersect True
+      using top_ereal_def
       by simp
     also have "score_std d K (A, V, p) w = \<infinity>"
       using True
@@ -634,7 +635,7 @@ proof -
     hence "finite (d (A, V, p) `(\<K>\<^sub>\<E>_std K w A V))"
       using subset_dist_\<K>\<^sub>\<E>_std rev_finite_subset
       by blast
-    moreover have "d (A, V, p) ` (\<K>\<^sub>\<E>_std K w A V) \<noteq> {}"
+    moreover have std_dist_nonempty: "d (A, V, p) ` (\<K>\<^sub>\<E>_std K w A V) \<noteq> {}"
       using False
       by simp
     ultimately have
@@ -643,8 +644,10 @@ proof -
       using Min_Inf False
       by metis
     also have "\<dots> = score_std d K (A, V, p) w"
-      using False
-      by simp
+      unfolding False
+      using \<R>_sound std anonymity_action_presv_symmetry std_dist_nonempty
+            homogeneity_action_presv_symmetry irr_non_V
+      by auto
     also have "Inf (d (A, V, p) ` (\<K>\<^sub>\<E>_std K w A V)) =
       Inf (d (A, V, p) ` (\<K>\<^sub>\<E> K w \<inter>
         Pair A ` Pair V ` {p'. finite_profile V A p'}))"

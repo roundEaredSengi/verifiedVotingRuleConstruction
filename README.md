@@ -6,4 +6,4 @@ This repository contains a formalisation of a framework for the construction of 
 More details are explained in the corresponding [paper](https://doi.org/10.1007/978-3-030-45260-5_6), also see the respective [slides](https://easychair.org/smart-slide/slide/lWkh) for a quick overview.
 
 ## Contact
-For more information, please contact [Michael Kirsten](https://formal.kastel.kit.edu/~kirsten/?lang=en).
+For more information, please contact [Michael Kirsten](https://www.tcs.ifi.lmu.de/staff/michael-kirsten).

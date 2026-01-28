@@ -76,8 +76,8 @@ lemma max_agg_eq_result:
     a_in_A: "a \<in> A"
   shows "mod_contains_result (m \<parallel>\<^sub>\<up> n) m V A p a \<or>
           mod_contains_result (m \<parallel>\<^sub>\<up> n) n V A p a"
-proof (cases)
-  assume a_elect: "a \<in> elect (m \<parallel>\<^sub>\<up> n) V A p"
+proof (cases "a \<in> elect (m \<parallel>\<^sub>\<up> n) V A p")
+  case True
   hence "let (e, r, d) = m V A p;
            (e', r', d') = n V A p in
          a \<in> e \<union> e'"
@@ -99,139 +99,137 @@ proof (cases)
     using module_m module_n max_par_comp_sound
     by metis
   moreover have "a \<notin> defer (m \<parallel>\<^sub>\<up> n) V A p"
-    using module_mn IntI a_elect empty_iff prof_p result_disj
+    using module_mn IntI True empty_iff prof_p result_disj
     by (metis (no_types))
   moreover have "a \<notin> reject (m \<parallel>\<^sub>\<up> n) V A p"
-    using module_mn IntI a_elect empty_iff prof_p result_disj
+    using module_mn IntI True empty_iff prof_p result_disj
     by (metis (no_types))
   ultimately show ?thesis
     using assms
     by blast
 next
-  assume not_a_elect: "a \<notin> elect (m \<parallel>\<^sub>\<up> n) V A p"
+  case not_a_elect: False
   thus ?thesis
-  proof (cases)
-    assume a_in_defer: "a \<in> defer (m \<parallel>\<^sub>\<up> n) V A p"
-    thus ?thesis
-    proof (safe)
-      assume not_mod_cont_mn: "\<not> mod_contains_result (m \<parallel>\<^sub>\<up> n) n V A p a"
-      have par_emod: "\<forall> m' n'.
-        \<S>\<C>\<F>_result.electoral_module m' \<and>
-        \<S>\<C>\<F>_result.electoral_module n' \<longrightarrow>
-        \<S>\<C>\<F>_result.electoral_module (m' \<parallel>\<^sub>\<up> n')"
-        using max_par_comp_sound
+  proof (cases "a \<in> defer (m \<parallel>\<^sub>\<up> n) V A p"; safe)
+    case a_in_defer: True
+    assume not_mod_cont_mn: "\<not> mod_contains_result (m \<parallel>\<^sub>\<up> n) n V A p a"
+    have par_emod: "\<forall> m' n'.
+      \<S>\<C>\<F>_result.electoral_module m' \<and>
+      \<S>\<C>\<F>_result.electoral_module n' \<longrightarrow>
+      \<S>\<C>\<F>_result.electoral_module (m' \<parallel>\<^sub>\<up> n')"
+      using max_par_comp_sound
+      by blast
+    have set_intersect: "\<forall> a' A' A''. (a' \<in> A' \<inter> A'') = (a' \<in> A' \<and> a' \<in> A'')"
+      by blast
+    have wf_n: "well_formed_\<S>\<C>\<F> A (n V A p)"
+      using prof_p module_n
+      unfolding \<S>\<C>\<F>_result.electoral_module.simps
+      by blast
+    have wf_m: "well_formed_\<S>\<C>\<F> A (m V A p)"
+      using prof_p module_m
+      unfolding \<S>\<C>\<F>_result.electoral_module.simps
+      by blast
+    have e_mod_par: "\<S>\<C>\<F>_result.electoral_module (m \<parallel>\<^sub>\<up> n)"
+      using par_emod module_m module_n
+      by blast
+    hence "\<S>\<C>\<F>_result.electoral_module (m \<parallel>\<^sub>max_aggregator n)"
+      by simp
+    hence result_disj_max:
+      "elect (m \<parallel>\<^sub>max_aggregator n) V A p \<inter>
+          reject (m \<parallel>\<^sub>max_aggregator n) V A p = {} \<and>
+        elect (m \<parallel>\<^sub>max_aggregator n) V A p \<inter>
+          defer (m \<parallel>\<^sub>max_aggregator n) V A p = {} \<and>
+        reject (m \<parallel>\<^sub>max_aggregator n) V A p \<inter>
+          defer (m \<parallel>\<^sub>max_aggregator n) V A p = {}"
+      using prof_p result_disj
+      by metis
+    have a_not_elect: "a \<notin> elect (m \<parallel>\<^sub>max_aggregator n) V A p"
+      using result_disj_max a_in_defer
+      by force
+    have result_m: "(elect m V A p, reject m V A p, defer m V A p) = m V A p"
+      by auto
+    have result_n: "(elect n V A p, reject n V A p, defer n V A p) = n V A p"
+      by auto
+    have max_pq:
+      "\<forall> (A' :: 'a set) m' n'.
+        elect_r (max_aggregator A' m' n') = elect_r m' \<union> elect_r n'"
+      by force
+    have "a \<notin> elect (m \<parallel>\<^sub>max_aggregator n) V A p"
+      using a_not_elect
+      by blast
+    hence "a \<notin> elect m V A p \<union> elect n V A p"
+      using max_pq
+      by simp
+    hence a_not_elect_mn: "a \<notin> elect m V A p \<and> a \<notin> elect n V A p"
+      by blast
+    have a_not_mpar_rej: "a \<notin> reject (m \<parallel>\<^sub>\<up> n) V A p"
+      using result_disj_max a_in_defer
+      by fastforce
+    have mod_cont_res_fg:
+      "\<forall> m' n' A' V' p' (a' :: 'a).
+        mod_contains_result m' n' V' A' p' a' =
+          (\<S>\<C>\<F>_result.electoral_module m'
+            \<and> \<S>\<C>\<F>_result.electoral_module n'
+            \<and> profile V' A' p' \<and> a' \<in> A'
+            \<and> (a' \<in> elect m' V' A' p' \<longrightarrow> a' \<in> elect n' V' A' p')
+            \<and> (a' \<in> reject m' V' A' p' \<longrightarrow> a' \<in> reject n' V' A' p')
+            \<and> (a' \<in> defer m' V' A' p' \<longrightarrow> a' \<in> defer n' V' A' p'))"
+      unfolding mod_contains_result_def
+      by simp
+    have max_agg_res:
+      "max_aggregator A (elect m V A p, reject m V A p, defer m V A p)
+        (elect n V A p, reject n V A p, defer n V A p) =
+      (m \<parallel>\<^sub>max_aggregator n) V A p"
+      by simp
+    have well_f_max:
+      "\<forall> r' r'' e' e'' d' d'' A'.
+        well_formed_\<S>\<C>\<F> A' (e', r', d') \<and>
+        well_formed_\<S>\<C>\<F> A' (e'', r'', d'') \<longrightarrow>
+          reject_r (max_aggregator A' (e', r', d') (e'', r'', d'')) =
+      r' \<inter> r''"
+      using max_agg_rej_set
+      by metis
+    have e_mod_disj:
+      "\<forall> m' (V' :: 'v set) (A' :: 'a set) p'.
+        \<S>\<C>\<F>_result.electoral_module m' \<and> profile V' A' p'
+        \<longrightarrow> elect m' V' A' p' \<union> reject m' V' A' p' \<union> defer m' V' A' p' = A'"
+      using result_presv_alts
+      by blast
+    hence e_mod_disj_n: "elect n V A p \<union> reject n V A p \<union> defer n V A p = A"
+      using prof_p module_n
+      by metis
+    have "\<forall> m' n' A' V' p' (b :: 'a).
+            mod_contains_result m' n' V' A' p' b =
+              (\<S>\<C>\<F>_result.electoral_module m'
+                \<and> \<S>\<C>\<F>_result.electoral_module n'
+                \<and> profile V' A' p' \<and> b \<in> A'
+                \<and> (b \<in> elect m' V' A' p' \<longrightarrow> b \<in> elect n' V' A' p')
+                \<and> (b \<in> reject m' V' A' p' \<longrightarrow> b \<in> reject n' V' A' p')
+                \<and> (b \<in> defer m' V' A' p' \<longrightarrow> b \<in> defer n' V' A' p'))"
+      unfolding mod_contains_result_def
+      by simp
+    hence "a \<notin> defer n V A p"
+      using a_not_mpar_rej a_in_A e_mod_par module_n not_a_elect
+            not_mod_cont_mn prof_p
+      by blast
+    hence "a \<in> reject n V A p"
+      using a_in_A a_not_elect_mn module_n not_rej_imp_elec_or_defer prof_p
+      by metis
+    hence "a \<notin> reject m V A p"
+      using well_f_max max_agg_res result_m result_n set_intersect
+            wf_m wf_n a_not_mpar_rej
+      unfolding maximum_parallel_composition.simps
+      by (metis (no_types))
+    hence "a \<notin> defer (m \<parallel>\<^sub>\<up> n) V A p \<or> a \<in> defer m V A p"
+        using e_mod_disj prof_p a_in_A module_m a_not_elect_mn
         by blast
-      have set_intersect: "\<forall> a' A' A''. (a' \<in> A' \<inter> A'') = (a' \<in> A' \<and> a' \<in> A'')"
-        by blast
-      have wf_n: "well_formed_\<S>\<C>\<F> A (n V A p)"
-        using prof_p module_n
-        unfolding \<S>\<C>\<F>_result.electoral_module.simps
-        by blast
-      have wf_m: "well_formed_\<S>\<C>\<F> A (m V A p)"
-        using prof_p module_m
-        unfolding \<S>\<C>\<F>_result.electoral_module.simps
-        by blast
-      have e_mod_par: "\<S>\<C>\<F>_result.electoral_module (m \<parallel>\<^sub>\<up> n)"
-        using par_emod module_m module_n
-        by blast
-      hence "\<S>\<C>\<F>_result.electoral_module (m \<parallel>\<^sub>max_aggregator n)"
-        by simp
-      hence result_disj_max:
-        "elect (m \<parallel>\<^sub>max_aggregator n) V A p \<inter>
-            reject (m \<parallel>\<^sub>max_aggregator n) V A p = {} \<and>
-          elect (m \<parallel>\<^sub>max_aggregator n) V A p \<inter>
-            defer (m \<parallel>\<^sub>max_aggregator n) V A p = {} \<and>
-          reject (m \<parallel>\<^sub>max_aggregator n) V A p \<inter>
-            defer (m \<parallel>\<^sub>max_aggregator n) V A p = {}"
-        using prof_p result_disj
-        by metis
-      have a_not_elect: "a \<notin> elect (m \<parallel>\<^sub>max_aggregator n) V A p"
-        using result_disj_max a_in_defer
-        by force
-      have result_m: "(elect m V A p, reject m V A p, defer m V A p) = m V A p"
-        by auto
-      have result_n: "(elect n V A p, reject n V A p, defer n V A p) = n V A p"
-        by auto
-      have max_pq:
-        "\<forall> (A' :: 'a set) m' n'.
-          elect_r (max_aggregator A' m' n') = elect_r m' \<union> elect_r n'"
-        by force
-      have "a \<notin> elect (m \<parallel>\<^sub>max_aggregator n) V A p"
-        using a_not_elect
-        by blast
-      hence "a \<notin> elect m V A p \<union> elect n V A p"
-        using max_pq
-        by simp
-      hence a_not_elect_mn: "a \<notin> elect m V A p \<and> a \<notin> elect n V A p"
-        by blast
-      have a_not_mpar_rej: "a \<notin> reject (m \<parallel>\<^sub>\<up> n) V A p"
-        using result_disj_max a_in_defer
-        by fastforce
-      have mod_cont_res_fg:
-        "\<forall> m' n' A' V' p' (a' :: 'a).
-          mod_contains_result m' n' V' A' p' a' =
-            (\<S>\<C>\<F>_result.electoral_module m'
-              \<and> \<S>\<C>\<F>_result.electoral_module n'
-              \<and> profile V' A' p' \<and> a' \<in> A'
-              \<and> (a' \<in> elect m' V' A' p' \<longrightarrow> a' \<in> elect n' V' A' p')
-              \<and> (a' \<in> reject m' V' A' p' \<longrightarrow> a' \<in> reject n' V' A' p')
-              \<and> (a' \<in> defer m' V' A' p' \<longrightarrow> a' \<in> defer n' V' A' p'))"
-        unfolding mod_contains_result_def
-        by simp
-      have max_agg_res:
-        "max_aggregator A (elect m V A p, reject m V A p, defer m V A p)
-          (elect n V A p, reject n V A p, defer n V A p) =
-        (m \<parallel>\<^sub>max_aggregator n) V A p"
-        by simp
-      have well_f_max:
-        "\<forall> r' r'' e' e'' d' d'' A'.
-          well_formed_\<S>\<C>\<F> A' (e', r', d') \<and>
-          well_formed_\<S>\<C>\<F> A' (e'', r'', d'') \<longrightarrow>
-            reject_r (max_aggregator A' (e', r', d') (e'', r'', d'')) =
-        r' \<inter> r''"
-        using max_agg_rej_set
-        by metis
-      have e_mod_disj:
-        "\<forall> m' (V' :: 'v set) (A' :: 'a set) p'.
-          \<S>\<C>\<F>_result.electoral_module m' \<and> profile V' A' p'
-          \<longrightarrow> elect m' V' A' p' \<union> reject m' V' A' p' \<union> defer m' V' A' p' = A'"
-        using result_presv_alts
-        by blast
-      hence e_mod_disj_n: "elect n V A p \<union> reject n V A p \<union> defer n V A p = A"
-        using prof_p module_n
-        by metis
-      have "\<forall> m' n' A' V' p' (b :: 'a).
-              mod_contains_result m' n' V' A' p' b =
-                (\<S>\<C>\<F>_result.electoral_module m'
-                  \<and> \<S>\<C>\<F>_result.electoral_module n'
-                  \<and> profile V' A' p' \<and> b \<in> A'
-                  \<and> (b \<in> elect m' V' A' p' \<longrightarrow> b \<in> elect n' V' A' p')
-                  \<and> (b \<in> reject m' V' A' p' \<longrightarrow> b \<in> reject n' V' A' p')
-                  \<and> (b \<in> defer m' V' A' p' \<longrightarrow> b \<in> defer n' V' A' p'))"
-        unfolding mod_contains_result_def
-        by simp
-      hence "a \<notin> defer n V A p"
-        using a_not_mpar_rej a_in_A e_mod_par module_n not_a_elect
-              not_mod_cont_mn prof_p
-        by blast
-      hence "a \<in> reject n V A p"
-        using a_in_A a_not_elect_mn module_n not_rej_imp_elec_or_defer prof_p
-        by metis
-      hence "a \<notin> reject m V A p"
-        using well_f_max max_agg_res result_m result_n set_intersect
-              wf_m wf_n a_not_mpar_rej
-        unfolding maximum_parallel_composition.simps
-        by (metis (no_types))
-      hence "a \<notin> defer (m \<parallel>\<^sub>\<up> n) V A p \<or> a \<in> defer m V A p"
-          using e_mod_disj prof_p a_in_A module_m a_not_elect_mn
-          by blast
-      thus "mod_contains_result (m \<parallel>\<^sub>\<up> n) m V A p a"
+    thus "mod_contains_result (m \<parallel>\<^sub>\<up> n) m V A p a"
         using a_not_mpar_rej mod_cont_res_fg e_mod_par prof_p a_in_A
               module_m a_not_elect
         unfolding maximum_parallel_composition.simps
         by metis
-    qed
   next
+    case False
     assume not_a_defer: "a \<notin> defer (m \<parallel>\<^sub>\<up> n) V A p"
     have el_rej_defer: "(elect m V A p, reject m V A p, defer m V A p) = m V A p"
       by auto
@@ -256,7 +254,7 @@ next
       by simp
     hence "a \<notin> elect m V A p \<union> (defer n V A p \<union> defer m V A p)"
       by force
-    thus ?thesis
+    thus "mod_contains_result (m \<parallel>\<^sub>\<up> n) m V A p a"
       using mod_contains_result_comm mod_contains_result_def Un_iff
             a_reject prof_p a_in_A module_m module_n max_par_comp_sound
       by (metis (no_types))
@@ -638,8 +636,8 @@ proof (unfold defer_lift_invariance_def, safe)
     unfolding disjoint_compatibility_def
     by (metis (no_types, lifting))
   have "\<forall> b \<in> A. prof_contains_result (m \<parallel>\<^sub>\<up> n) V A p q b"
-  proof (cases)
-    assume a_in_B: "a \<in> B"
+  proof (cases "a \<in> B")
+    case True
     hence "a \<in> reject m V A p"
       using alts f_profs
       by blast
@@ -653,35 +651,25 @@ proof (unfold defer_lift_invariance_def, safe)
       unfolding disjoint_compatibility_def
       by metis
     moreover have "\<forall> b \<in> A. prof_contains_result n V A p q b"
-    proof (unfold prof_contains_result_def, clarify)
+    proof (unfold prof_contains_result_def, safe)
       fix b :: "'a"
       assume b_in_A: "b \<in> A"
-      show "\<S>\<C>\<F>_result.electoral_module n \<and> profile V A p
-              \<and> profile V A q \<and> b \<in> A \<and>
-              (b \<in> elect n V A p \<longrightarrow> b \<in> elect n V A q) \<and>
-              (b \<in> reject n V A p \<longrightarrow> b \<in> reject n V A q) \<and>
-              (b \<in> defer n V A p \<longrightarrow> b \<in> defer n V A q)"
-      proof (safe)
-        show "\<S>\<C>\<F>_result.electoral_module n"
-          using monotone_n
-          unfolding defer_lift_invariance_def
-          by metis
-      next
-        show
-          "profile V A p" and
-          "profile V A q" and
-          "b \<in> A"
-          using f_profs b_in_A
-          by (simp, simp, simp)
-      next
-        show
-          "b \<in> elect n V A p \<Longrightarrow> b \<in> elect n V A q" and
-          "b \<in> reject n V A p \<Longrightarrow> b \<in> reject n V A q" and
-          "b \<in> defer n V A p \<Longrightarrow> b \<in> defer n V A q"
-          using defer_n lifted_a monotone_n f_profs
-          unfolding defer_lift_invariance_def
-          by (metis, metis, metis)
-      qed
+      show "\<S>\<C>\<F>_result.electoral_module n"
+        using monotone_n
+        unfolding defer_lift_invariance_def
+        by metis
+      show
+        "profile V A p" and
+        "profile V A q"
+        using f_profs b_in_A
+        by (simp, simp)
+      show
+        "b \<in> elect n V A p \<Longrightarrow> b \<in> elect n V A q" and
+        "b \<in> reject n V A p \<Longrightarrow> b \<in> reject n V A q" and
+        "b \<in> defer n V A p \<Longrightarrow> b \<in> defer n V A q"
+        using defer_n lifted_a monotone_n f_profs
+        unfolding defer_lift_invariance_def
+        by (metis, metis, metis)
     qed
     moreover have "\<forall> b \<in> B. mod_contains_result n (m \<parallel>\<^sub>\<up> n) V A q b"
       using alts compatible max_agg_rej_snd_imp_seq_contained f_profs
@@ -697,35 +685,25 @@ proof (unfold defer_lift_invariance_def, safe)
       unfolding defer_lift_invariance_def
       by metis
     moreover have "\<forall> b \<in> A. prof_contains_result m V A p q b"
-    proof (unfold prof_contains_result_def, clarify)
+    proof (unfold prof_contains_result_def, safe)
       fix b :: "'a"
       assume b_in_A: "b \<in> A"
-      show "\<S>\<C>\<F>_result.electoral_module m \<and> profile V A p \<and>
-              profile V A q \<and> b \<in> A \<and>
-              (b \<in> elect m V A p \<longrightarrow> b \<in> elect m V A q) \<and>
-              (b \<in> reject m V A p \<longrightarrow> b \<in> reject m V A q) \<and>
-              (b \<in> defer m V A p \<longrightarrow> b \<in> defer m V A q)"
-      proof (safe)
-        show "\<S>\<C>\<F>_result.electoral_module m"
-          using monotone_m
-          unfolding defer_lift_invariance_def
-          by metis
-      next
-        show
-          "profile V A p" and
-          "profile V A q" and
-          "b \<in> A"
-          using f_profs b_in_A
-          by (simp, simp, simp)
-      next
-        show
-          "b \<in> elect m V A p \<Longrightarrow> b \<in> elect m V A q" and
-          "b \<in> reject m V A p \<Longrightarrow> b \<in> reject m V A q" and
-          "b \<in> defer m V A p \<Longrightarrow> b \<in> defer m V A q"
-          using alts a_in_B lifted_a lifted_imp_equiv_prof_except_a
-          unfolding indep_of_alt_def
-          by (metis, metis, metis)
-      qed
+      show "\<S>\<C>\<F>_result.electoral_module m"
+        using monotone_m
+        unfolding defer_lift_invariance_def
+        by metis
+      show
+        "profile V A p" and
+        "profile V A q"
+        using f_profs b_in_A
+        by (simp, simp)
+      show
+        "b \<in> elect m V A p \<Longrightarrow> b \<in> elect m V A q" and
+        "b \<in> reject m V A p \<Longrightarrow> b \<in> reject m V A q" and
+        "b \<in> defer m V A p \<Longrightarrow> b \<in> defer m V A q"
+        using alts True lifted_a lifted_imp_equiv_prof_except_a
+        unfolding indep_of_alt_def
+        by (metis, metis, metis)
     qed
     moreover have "\<forall> b \<in> A - B. mod_contains_result m (m \<parallel>\<^sub>\<up> n) V A q b"
       using alts max_agg_rej_fst_imp_seq_contained monotone_m monotone_n f_profs
@@ -739,7 +717,7 @@ proof (unfold defer_lift_invariance_def, safe)
       using prof_contains_result_of_comps_for_elems_in_B
       by blast
   next
-    assume "a \<notin> B"
+    case False
     hence a_in_set_diff: "a \<in> A - B"
       using DiffI lifted_a compatible f_profs
       unfolding Profile.lifted_def
@@ -760,71 +738,52 @@ proof (unfold defer_lift_invariance_def, safe)
       unfolding defer_lift_invariance_def
       by metis
     moreover have "\<forall> b \<in> A. prof_contains_result n V A p q b"
-    proof (unfold prof_contains_result_def, clarify)
+    proof (unfold prof_contains_result_def, safe)
       fix b :: "'a"
       assume b_in_A: "b \<in> A"
-      show "\<S>\<C>\<F>_result.electoral_module n \<and> profile V A p \<and>
-              profile V A q \<and> b \<in> A \<and>
-              (b \<in> elect n V A p \<longrightarrow> b \<in> elect n V A q) \<and>
-              (b \<in> reject n V A p \<longrightarrow> b \<in> reject n V A q) \<and>
-              (b \<in> defer n V A p \<longrightarrow> b \<in> defer n V A q)"
-      proof (safe)
-        show "\<S>\<C>\<F>_result.electoral_module n"
-          using monotone_n
-          unfolding defer_lift_invariance_def
-          by metis
-      next
-        show
-          "profile V A p" and
-          "profile V A q" and
-          "b \<in> A"
-          using f_profs b_in_A
-          by (simp, simp, simp)
-      next
-        show
-          "b \<in> elect n V A p \<Longrightarrow> b \<in> elect n V A q" and
-          "b \<in> reject n V A p \<Longrightarrow> b \<in> reject n V A q" and
-          "b \<in> defer n V A p \<Longrightarrow> b \<in> defer n V A q"
-          using alts a_in_set_diff lifted_a lifted_imp_equiv_prof_except_a
-          unfolding indep_of_alt_def
-          by (metis, metis, metis)
-      qed
+      show "\<S>\<C>\<F>_result.electoral_module n"
+        using monotone_n
+        unfolding defer_lift_invariance_def
+        by metis
+      show
+        "profile V A p" and
+        "profile V A q"
+        using f_profs b_in_A
+        by (simp, simp)
+      show
+        "b \<in> elect n V A p \<Longrightarrow> b \<in> elect n V A q" and
+        "b \<in> reject n V A p \<Longrightarrow> b \<in> reject n V A q" and
+        "b \<in> defer n V A p \<Longrightarrow> b \<in> defer n V A q"
+        using alts a_in_set_diff lifted_a lifted_imp_equiv_prof_except_a
+        unfolding indep_of_alt_def
+        by (metis, metis, metis)
     qed
-  moreover have "\<forall> b \<in> B. mod_contains_result n (m \<parallel>\<^sub>\<up> n) V A q b"
-    using alts compatible max_agg_rej_snd_imp_seq_contained f_profs
-    unfolding disjoint_compatibility_def
-    by metis
-  ultimately have prof_contains_result_of_comps_for_elems_in_B:
-    "\<forall> b \<in> B. prof_contains_result (m \<parallel>\<^sub>\<up> n) V A p q b"
-      unfolding mod_contains_result_def mod_contains_result_sym_def
-                prof_contains_result_def
-    by simp
-  have "\<forall> b \<in> A - B. mod_contains_result_sym (m \<parallel>\<^sub>\<up> n) m V A p b"
-    using alts max_agg_rej_fst_equiv_seq_contained monotone_m monotone_n f_profs
-    unfolding defer_lift_invariance_def
-    by metis
-  moreover have "\<forall> b \<in> A. prof_contains_result m V A p q b"
-  proof (unfold prof_contains_result_def, clarify)
-    fix b :: "'a"
-    assume b_in_A: "b \<in> A"
-    show "\<S>\<C>\<F>_result.electoral_module m \<and> profile V A p
-        \<and> profile V A q \<and> b \<in> A
-        \<and> (b \<in> elect m V A p \<longrightarrow> b \<in> elect m V A q)
-        \<and> (b \<in> reject m V A p \<longrightarrow> b \<in> reject m V A q)
-        \<and> (b \<in> defer m V A p \<longrightarrow> b \<in> defer m V A q)"
-    proof (safe)
+    moreover have "\<forall> b \<in> B. mod_contains_result n (m \<parallel>\<^sub>\<up> n) V A q b"
+      using alts compatible max_agg_rej_snd_imp_seq_contained f_profs
+      unfolding disjoint_compatibility_def
+      by metis
+    ultimately have prof_contains_result_of_comps_for_elems_in_B:
+      "\<forall> b \<in> B. prof_contains_result (m \<parallel>\<^sub>\<up> n) V A p q b"
+        unfolding mod_contains_result_def mod_contains_result_sym_def
+                  prof_contains_result_def
+      by simp
+    have "\<forall> b \<in> A - B. mod_contains_result_sym (m \<parallel>\<^sub>\<up> n) m V A p b"
+      using alts max_agg_rej_fst_equiv_seq_contained monotone_m monotone_n f_profs
+      unfolding defer_lift_invariance_def
+      by metis
+    moreover have "\<forall> b \<in> A. prof_contains_result m V A p q b"
+    proof (unfold prof_contains_result_def, safe)
+      fix b :: "'a"
+      assume b_in_A: "b \<in> A"
       show "\<S>\<C>\<F>_result.electoral_module m"
         using monotone_m
         unfolding defer_lift_invariance_def
         by simp
-    next
       show
         "profile V A p" and
-        "profile V A q" and
-        "b \<in> A"
+        "profile V A q"
         using f_profs b_in_A
-        by (simp, simp, simp)
-    next
+        by (simp, simp)
       show
         "b \<in> elect m V A p \<Longrightarrow> b \<in> elect m V A q" and
         "b \<in> reject m V A p \<Longrightarrow> b \<in> reject m V A q" and
@@ -833,18 +792,17 @@ proof (unfold defer_lift_invariance_def, safe)
         unfolding defer_lift_invariance_def
         by (metis, metis, metis)
     qed
-  qed
-  moreover have "\<forall> x \<in> A - B. mod_contains_result m (m \<parallel>\<^sub>\<up> n) V A q x"
-    using alts max_agg_rej_fst_imp_seq_contained monotone_m monotone_n f_profs
-    unfolding defer_lift_invariance_def
-    by metis
-  ultimately have "\<forall> x \<in> A - B. prof_contains_result (m \<parallel>\<^sub>\<up> n) V A p q x"
-    unfolding mod_contains_result_def mod_contains_result_sym_def
-              prof_contains_result_def
-    by simp
-  thus ?thesis
-    using prof_contains_result_of_comps_for_elems_in_B
-    by blast
+    moreover have "\<forall> x \<in> A - B. mod_contains_result m (m \<parallel>\<^sub>\<up> n) V A q x"
+      using alts max_agg_rej_fst_imp_seq_contained monotone_m monotone_n f_profs
+      unfolding defer_lift_invariance_def
+      by metis
+    ultimately have "\<forall> x \<in> A - B. prof_contains_result (m \<parallel>\<^sub>\<up> n) V A p q x"
+      unfolding mod_contains_result_def mod_contains_result_sym_def
+                prof_contains_result_def
+      by simp
+    thus ?thesis
+      using prof_contains_result_of_comps_for_elems_in_B
+      by blast
   qed
   thus "(m \<parallel>\<^sub>\<up> n) V A p = (m \<parallel>\<^sub>\<up> n) V A q"
     using compatible f_profs eq_alts_in_profs_imp_eq_results max_par_comp_sound

@@ -398,20 +398,20 @@ lemma seq_comp_def_then_elect:
     electing_n: "electing n" and
     f_prof: "finite_profile V A p"
   shows "elect (m \<triangleright> n) V A p = defer m V A p"
-proof (cases)
-  assume "A = {}"
+proof (cases "A = {}")
+  case True
   with electing_n n_electing_m f_prof
   show ?thesis
     using bot.extremum_uniqueI defer_in_alts elect_in_alts seq_comp_sound
     unfolding electing_def non_electing_def
     by metis
 next
-  assume non_empty_A: "A \<noteq> {}"
+  case False
   from n_electing_m f_prof
   have ele: "elect m V A p = {}"
     unfolding non_electing_def
     by simp
-  from non_empty_A def_one_m f_prof finite
+  from False def_one_m f_prof finite
   have def_card: "card (defer m V A p) = 1"
     unfolding defers_def
     by (simp add: Suc_leI card_gt_0_iff)
@@ -811,14 +811,14 @@ proof -
     unfolding sequential_composition.simps
     by metis
   have mono_n: "n V ?new_Ap ?new_p = n V ?new_Aq ?new_q"
-  proof (cases)
-    assume "lifted V ?new_Ap ?new_p ?new_q a"
+  proof (cases "lifted V ?new_Ap ?new_p ?new_q a")
+    case True
     thus ?thesis
       using defer_eq mono_m monotone_n def_and_lifted
       unfolding defer_lift_invariance_def
       by (metis (no_types, lifting))
   next
-    assume unlifted_a: "\<not>lifted V ?new_Ap ?new_p ?new_q a"
+    case False
     from def_and_lifted
     have "finite_profile V A q"
       unfolding lifted_def
@@ -840,7 +840,7 @@ proof -
        (\<exists> v \<in> V.
           \<not> Preference_Relation.lifted ?new_Ap (?new_p v) (?new_q v) a \<and>
               (?new_p v) \<noteq> (?new_q v))"
-      using unlifted_a def_and_lifted defer_in_alts infinite_super modules profile_p
+      using False def_and_lifted defer_in_alts infinite_super modules profile_p
       unfolding lifted_def
       by metis
     from def_and_lifted modules
@@ -1623,8 +1623,8 @@ next
     using defer_a_p is_singleton_altdef is_singleton_the_elem singletonD
     by (metis (no_types))
   show "(m \<triangleright> n) V A p = (m \<triangleright> n) V A q"
-  proof (cases)
-    assume "defer m V A q \<noteq> defer m V A p"
+  proof (cases "defer m V A q \<noteq> defer m V A p")
+    case True
     hence "defer m V A q = {a}"
       using defer_a_p electoral_mod_n finite_profile_p lifted_a seq_comp_def_set_trans
             strong_def_mon_m
@@ -1657,7 +1657,7 @@ next
             finite_profile_p finite_profile_q seq_comp_sound
       by (metis (no_types))
   next
-    assume "\<not> (defer m V A q \<noteq> defer m V A p)"
+    case False
     hence def_eq: "defer m V A q = defer m V A p"
       by presburger
     have "elect m V A p = {}"
