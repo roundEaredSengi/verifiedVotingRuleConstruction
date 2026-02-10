@@ -5,6 +5,11 @@ theory Voting_Power_Scratch
 
 begin
 
+section \<open>Basic Definitions and Types\<close>
+
+type_synonym ('x, 'v) Voting_Power = "'x \<Rightarrow> 'v \<Rightarrow> ereal"
+type_synonym ('x, 'v) Voting_Power_Axiom = "'x set \<Rightarrow> ('x, 'v) Voting_Power \<Rightarrow> bool"
+
 section \<open>Auxiliary Definitions and Lemmas\<close>
 
 fun actual_funcset :: "'x set \<Rightarrow> 'y set \<Rightarrow> ('x \<Rightarrow> 'y) set" where
@@ -15,6 +20,36 @@ fun characteristic :: "('x \<Rightarrow> 'y) \<Rightarrow> 'y set \<Rightarrow> 
 
 fun uncurry :: "('x \<Rightarrow> 'y \<Rightarrow> 'z) \<Rightarrow> ('x \<times> 'y \<Rightarrow> 'z)" where
   "uncurry f (x, y) = f x y"
+
+lemma exists_functions_1:
+  fixes
+    Y :: "'y set" and X :: "'x set"
+  assumes "Y \<noteq> {}"
+  shows "actual_funcset X Y \<noteq> {}"
+proof (safe)
+  assume empty: "actual_funcset X Y = {}"
+  from assms obtain y :: 'y where "y \<in> Y"
+    by auto
+  let ?f = "\<lambda>x. if x \<in> X then y else undefined"
+  have "?f \<in> actual_funcset X Y"
+    unfolding actual_funcset.simps extensional_def Pi_def
+    using \<open>y \<in> Y\<close>
+    by simp
+  thus "False"
+    using empty
+    by blast
+qed
+
+lemma exists_functions_2:
+  shows "actual_funcset {} {} \<noteq> {}"
+proof -
+  let ?f = "\<lambda>x. undefined"
+  have "?f \<in> actual_funcset {} {}"
+    unfolding actual_funcset.simps Pi_def extensional_def
+    by simp
+  thus ?thesis
+    by simp
+qed
 
 lemma sum_coincide: 
   fixes

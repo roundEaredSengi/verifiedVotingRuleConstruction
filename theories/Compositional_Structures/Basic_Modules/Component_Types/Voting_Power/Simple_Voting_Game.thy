@@ -19,9 +19,13 @@ abbreviation voters_svg :: "'v Simple_Voting_Game \<Rightarrow> 'v set" where
 abbreviation coalitions :: "'v Simple_Voting_Game \<Rightarrow> 'v set set" where
   "coalitions G \<equiv> snd G"
 
-section \<open>Voting Power Indices\<close>
+fun monotone_SVG :: "'v Simple_Voting_Game \<Rightarrow> bool" where
+  "monotone_SVG (V, \<F>) = (\<forall>S \<in> Pow V. \<forall>T \<in> Pow V. S \<subseteq> T \<longrightarrow> S \<in> \<F> \<longrightarrow> T \<in> \<F>)"
 
-type_synonym 'v Voting_Power_SVG = "'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> ereal"
+definition monotone_SVGs :: "'v Simple_Voting_Game set" where
+  "monotone_SVGs \<equiv> Collect monotone_SVG"
+
+section \<open>Voting Power Indices\<close>
 
 fun swing_vote_svg :: "'v set set \<Rightarrow> 'v \<Rightarrow> 'v set \<Rightarrow> ereal" where
   "swing_vote_svg \<F> v S = (if ((S \<union> {v}) \<in> \<F>) \<noteq> ((S - {v}) \<in> \<F>) then 1 else 0)"
@@ -30,7 +34,7 @@ text \<open>
   First formulation of a Banzhaf index for simple voting games:
   Count the number of coalitions a voter can change by switching their vote and average over those.
 \<close>
-fun banzhaf_svg_1 :: "'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> ereal" where
+fun banzhaf_svg_1 :: "('v Simple_Voting_Game, 'v) Voting_Power" where
   "banzhaf_svg_1 (V, \<F>) v = 
     (1/(2^(card V))) * (\<Sum> S \<in> Pow V. swing_vote_svg \<F> v S)"
 (* TODO: Original definition just assumes finite voter sets.
@@ -50,29 +54,31 @@ text \<open>
   A player is called null player if they do not have any swing votes.
   A voting power index satisfies the null player axiom if null players have 0 power in every SVG.
 \<close>
-fun null_player_axiom_svg :: "'v Voting_Power_SVG \<Rightarrow> bool" where
-  "null_player_axiom_svg \<delta> = 
-    (\<forall>G::'v Simple_Voting_Game. \<forall>v \<in> voters_svg G. is_null_player G v \<longrightarrow> \<delta> G v = 0)"
+fun null_player_axiom_svg :: "('v Simple_Voting_Game, 'v) Voting_Power_Axiom" where
+  "null_player_axiom_svg \<G> \<delta> = 
+    (\<forall>G \<in> \<G>. \<forall>v \<in> voters_svg G. is_null_player G v \<longrightarrow> \<delta> G v = 0)"
 
 fun block_svg :: "'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> 'v \<Rightarrow> 'v Simple_Voting_Game" where
   "block_svg G v w = (voters_svg G - {w}, {S - {w} |S. (v \<in> S \<longleftrightarrow> w \<in> S) \<and> S \<in> coalitions G})"
 
-fun block_axiom_svg :: "('v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> ereal) \<Rightarrow> bool" where
-  "block_axiom_svg \<delta> = (\<forall>G::'v Simple_Voting_Game. \<forall>v \<in> voters_svg G. \<forall>w \<in> voters_svg G. 
-    (w \<noteq> v \<and> \<not> is_null_player G w) \<longrightarrow> (\<delta> (block_svg G v w) v \<ge> \<delta> G v))"
+fun block_axiom_svg :: 
+  "('v Simple_Voting_Game, 'v) Voting_Power_Axiom" where
+  "block_axiom_svg \<G> \<delta> = (\<forall>G \<in> \<G>. \<forall>v \<in> voters_svg G. \<forall>w \<in> voters_svg G. 
+    (w \<noteq> v \<longrightarrow> (\<delta> (block_svg G v w) v \<ge> Max{\<delta> G v, \<delta> G w})))"
 
 fun iso_svg :: 
   "('v \<Rightarrow> 'v) \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> bool" where
   "iso_svg \<phi> G1 G2 = 
     (bij_betw \<phi> (voters_svg G1) (voters_svg G2) \<and> (image \<phi>) ` (coalitions G1) = coalitions G2)"
 
-fun symmetry_axiom_svg :: "'v Voting_Power_SVG \<Rightarrow> bool" where
-  "symmetry_axiom_svg \<delta> = (\<forall>G1 G2 \<phi>. iso_svg \<phi> G1 G2 \<longrightarrow> (\<forall>v \<in> voters_svg G1. \<delta> G1 v = \<delta> G2 (\<phi> v)))"
+fun symmetry_axiom_svg :: "('v Simple_Voting_Game, 'v) Voting_Power_Axiom" where
+  "symmetry_axiom_svg \<G> \<delta> = 
+    (\<forall>G1 \<in> \<G>. \<forall>G2 \<in> \<G>. \<forall>\<phi>. iso_svg \<phi> G1 G2 \<longrightarrow> (\<forall>v \<in> voters_svg G1. \<delta> G1 v = \<delta> G2 (\<phi> v)))"
 
 section \<open>Property Proofs\<close>
 
 lemma banzhaf_1_satisfies_null_player_axiom: 
-  "null_player_axiom_svg banzhaf_svg_1"
+  "null_player_axiom_svg UNIV banzhaf_svg_1"
 proof (simp only: null_player_axiom_svg.simps fst_def, safe)
   fix
     V :: "'a set" and
@@ -91,8 +97,12 @@ proof (simp only: null_player_axiom_svg.simps fst_def, safe)
     by simp
 qed 
 
+lemma banzhaf_1_satisfies_symmetry_axiom:
+  "symmetry_axiom_svg UNIV banzhaf_svg_1"
+  sorry
+
 lemma banzhaf_1_satisfies_block_axiom: 
-  "block_axiom_svg banzhaf_svg_1"
+  "block_axiom_svg monotone_SVGs banzhaf_svg_1"
 proof (simp only: block_axiom_svg.simps fst_def snd_def, safe, goal_cases)
   case (1 V \<F> v w)
   then show ?case
@@ -112,54 +122,22 @@ proof (simp only: block_axiom_svg.simps fst_def snd_def, safe, goal_cases)
       by (simp add: one_ereal_def) (* TODO why is this needed? *)
     finally have card1: "1/((2::ereal)^(card (V - {w}))) = (2::ereal) * (1/(2^(card V)))"
       by simp
-    have 
-      "(2::ereal) * (\<Sum> S \<in> Pow (V-{w}). swing_vote_svg ?\<F> v S) \<ge> 
-        (\<Sum> S \<in> Pow V. swing_vote_svg \<F> v S)"
+    thus ?thesis
       sorry
-    hence
-      "(1/(2^(card V))) * ((2::ereal) * (\<Sum> S \<in> Pow (V-{w}). swing_vote_svg ?\<F> v S)) \<ge> 
-        (1/(2^(card V))) * (\<Sum> S \<in> Pow V. swing_vote_svg \<F> v S)"
-      by simp
-    moreover have 
-      "(1/(2^(card V))) * ((2::ereal) * (\<Sum> S \<in> Pow (V-{w}). swing_vote_svg ?\<F> v S)) =
-        (2::ereal) * (1/(2^(card V))) * (\<Sum> S \<in> Pow (V-{w}). swing_vote_svg ?\<F> v S)"
-      by (smt (verit, best) mult.assoc mult.commute) (* TODO wtf *)
-    ultimately have geq2:
-      "(2::ereal) * (1/(2^(card V))) * (\<Sum> S \<in> Pow (V-{w}). swing_vote_svg ?\<F> v S) \<ge> 
-        (1/(2^(card V))) * (\<Sum> S \<in> Pow V. swing_vote_svg \<F> v S)"
-      by simp
-    have 
-      "banzhaf_svg_1 (block_svg (V, \<F>) v w) v = 
-        (1/((2::ereal)^(card (V-{w})))) * (\<Sum> S \<in> Pow (V-{w}). swing_vote_svg ?\<F> v S)"
-      by simp
-    moreover have 
-      "... = 2 * (1/(2^(card V))) * (\<Sum> S \<in> Pow (V-{w}). swing_vote_svg ?\<F> v S)"
-      using \<open>w \<in> V\<close> True card1
-      by simp
-    moreover have "... \<ge> (1/(2^(card V))) * (\<Sum> S \<in> Pow V. swing_vote_svg \<F> v S)"
-      using geq2
-      by simp
-    moreover have 
-      "banzhaf_svg_1 (V, \<F>) v = (1/(2^(card V))) * (\<Sum> S \<in> Pow V. swing_vote_svg \<F> v S)"
-      by simp (* TODO why does "... = banzhaf_svg_1 (V, F) v" not work? *)
-    ultimately show ?thesis  
-      by metis
   next
     case False
     hence "infinite (V - {w})"
       by simp
     hence "banzhaf_svg_1 (block_svg (V, \<F>) v w) v = 0"
       by simp
-    moreover have "Max {banzhaf_svg_1 (V, \<F>) v, banzhaf_svg_1 (V, \<F>) w} = 0"
+    moreover have "Max{banzhaf_svg_1 (V, \<F>) v, banzhaf_svg_1 (V, \<F>) w} = 0"
       using False
       by simp
-    ultimately show ?thesis by simp
+    ultimately show ?thesis  
+      by order
   qed
 qed
 
-lemma banzhaf_1_satisfies_symmetry_axiom: 
-  "symmetry_axiom_svg banzhaf_svg_1"
-  sorry
 
 lemma banzhaf_1_is_prob_svg:
   fixes
