@@ -1,0 +1,50 @@
+chapter \<open>Strategic Game\<close>
+
+theory Strategic_Game
+  imports Voting_Rule
+
+begin
+
+section \<open>Voting Model\<close>
+
+section \<open>Voting Power Indices\<close>
+
+text \<open>
+  First formulation of a Banzhaf index for strategic games: 
+  The same as the Banzhaf index of the induced voting rule.
+\<close>
+fun banzhaf_strat_1 :: "('v, 'a, 'r) Strategic_Game \<Rightarrow> 'v \<Rightarrow> ereal" where
+  "banzhaf_strat_1 G v = banzhaf_rule_1 (strat_rule G) v" (* TODO *)
+
+text \<open>
+  Second formulation of a Banzhaf index for strategic games: 
+  Assumes the optimal strategy profiles from a given solution concept are uniformly distributed.
+\<close>
+fun banzhaf_strat_2 :: 
+  "('v, 'a, 'r) Strategic_Game \<Rightarrow> ('v, 'a, 'r) Solution_Concept \<Rightarrow> 'v \<Rightarrow> ereal" where
+  "banzhaf_strat_2 G C v = (1/(card (C G))) 
+    * (\<Sum> A \<in> C G. (Max {characteristic (swing_vote_rule (outcome_map G) v A) {1} A' | A'. A' \<in> C G}))"
+
+text \<open>
+  Third formulation of a Banzhaf index for strategic games: 
+  Includes the notion of success. 
+  A voter v's successful swing vote is a strategy profile A where v prefers the result after 
+  changing their vote to the result in A. 
+\<close>
+(* TODO type abbreviations for frequent types *)
+fun swing_vote_success ::
+  "('v, 'a, 'r) Strategic_Game \<Rightarrow> 'v \<Rightarrow> ('v \<Rightarrow> 'a) \<Rightarrow> ('v \<Rightarrow> 'a) \<Rightarrow> ereal" where
+  "swing_vote_success G v A A' = 
+    (if (differ_only_on v A A' 
+      \<and> (outcome_map G A, outcome_map G A') \<in> preferences G v) then 1 else 0)"
+
+fun banzhaf_strat_3 ::
+  "('v, 'a, 'r) Strategic_Game \<Rightarrow> ('v, 'a, 'r) Solution_Concept \<Rightarrow> 'v \<Rightarrow> ereal" where
+  "banzhaf_strat_3 G C v = (1/(card (C G)))
+    * (\<Sum> A \<in> C G. (Max {characteristic (swing_vote_success G v A) {1} A' | A'. A' \<in> C G}))"
+
+section \<open>Voting Power Properties\<close>
+
+section \<open>Property Proofs\<close>
+
+end

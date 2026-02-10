@@ -7,15 +7,10 @@ type_synonym ('v, 'b, 'r) Tallying_Method = "(('v \<Rightarrow> 'b) \<Rightarrow
 type_synonym 'x Voters = "'x set" (*TODO*)
 
 text \<open>
-A simple voting game is a tuple consisting of a set (of voters) 
-and a set family (of voter coalitions).
-\<close>
-type_synonym 'v Simple_Voting_Game = "'v set \<times> ('v set set)"
-
-text \<open>
 A voting rule is a tuple consisting of three sets (of voters, ballots and outcomes)
 and a map (the tallying method).
 \<close>
+(* TODO 'r set-valued? *)
 type_synonym ('v, 'b, 'r) Voting_Rule = "'v Voters \<times> 'b set \<times> 'r set \<times> ('v, 'b, 'r) Tallying_Method"
 
 abbreviation rule :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> ('v, 'b, 'r) Tallying_Method" where
@@ -36,6 +31,22 @@ a vector of sets (of strategies per voters), a vector of relations
 (one preference relation over outcomes per voter) and a map (the tallying method).
 \<close>
 type_synonym ('v, 'a, 'r) Strategic_Game = 
-  "'v set \<times> 'r set \<times> ('v \<Rightarrow> 'a set) \<times> ('v \<Rightarrow> 'r rel) \<times> (('v \<Rightarrow> 'a) \<Rightarrow> 'r)"  
+  "'v set \<times> 'r set \<times> ('v \<Rightarrow> 'a set) \<times> ('v \<Rightarrow> 'r rel) \<times> (('v \<Rightarrow> 'a) \<Rightarrow> 'r)"
 
+text \<open>
+A solution concept is a set of ideal, according to some optimality conditions,
+strategy profiles to be chosen by players in a strategic game.
+\<close>
+type_synonym ('v, 'a, 'r) Solution_Concept =
+  "('v, 'a, 'r) Strategic_Game \<Rightarrow> ('v \<Rightarrow> 'a) set"
+
+fun strat_rule :: "('v, 'a, 'r) Strategic_Game \<Rightarrow> ('v, 'a, 'r) Voting_Rule" where
+  "strat_rule (V, R, \<A>, \<P>, f) = (V, \<Union>(\<A> ` V), R, f)"
+
+abbreviation outcome_map ::  "('v, 'a, 'r) Strategic_Game \<Rightarrow> (('v \<Rightarrow> 'a) \<Rightarrow> 'r)" where
+  "outcome_map G \<equiv> snd (snd (snd (snd G)))"
+
+abbreviation preferences ::  "('v, 'a, 'r) Strategic_Game \<Rightarrow> ('v \<Rightarrow> 'r rel)" where
+  "preferences G \<equiv> fst (snd (snd (snd G)))"
+  
 end

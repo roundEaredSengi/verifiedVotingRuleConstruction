@@ -13,69 +13,99 @@ fun actual_funcset :: "'x set \<Rightarrow> 'y set \<Rightarrow> ('x \<Rightarro
 fun characteristic :: "('x \<Rightarrow> 'y) \<Rightarrow> 'y set \<Rightarrow> 'x \<Rightarrow> nat" where
   "characteristic f Y x = (if f x \<in> Y then 1 else 0)"
 
+fun uncurry :: "('x \<Rightarrow> 'y \<Rightarrow> 'z) \<Rightarrow> ('x \<times> 'y \<Rightarrow> 'z)" where
+  "uncurry f (x, y) = f x y"
+
+lemma sum_coincide: 
+  fixes
+    X :: "'x set" and
+    f :: "'x \<Rightarrow> real" and g :: "'x \<Rightarrow> real"
+  assumes
+    "finite X"
+    "\<forall>x \<in> X. f x = g x"
+  shows
+    "(\<Sum>x\<in>X. f x) = (\<Sum>x\<in>X. g x)"
+  using assms
+proof (induction "card X" arbitrary: X, simp)
+  fix 
+    n :: nat and
+    X :: "'x set"
+  assume
+    card: "Suc n = card X" and
+    fin: "finite X" and
+    coinc: "\<forall>x\<in>X. f x = g x" and
+    hyp: "(\<And>X. n = card X \<Longrightarrow> finite X \<Longrightarrow> \<forall>x\<in>X. f x = g x \<Longrightarrow> sum f X = sum g X)"
+  hence "X \<noteq> {}"
+    by auto
+  then obtain x :: 'x where "x \<in> X"
+    by blast
+  hence "card (X - {x}) = n"
+    using card
+    by simp
+  hence "sum f (X - {x}) = sum g (X - {x})"
+    using fin coinc hyp \<open>x \<in> X\<close>
+    by simp
+  moreover have "sum f (X - {x}) = sum f X - f x \<and> sum g (X - {x}) = sum g X - g x"
+    using fin \<open>x \<in> X\<close>
+    by (simp add: sum_diff1)
+  moreover have "f x = g x"
+    using \<open>x \<in> X\<close> coinc
+    by blast
+  ultimately show "sum f X = sum g X"
+    using fin hyp[of X]
+    by linarith
+qed 
+
 lemma set_card: 
   fixes 
     X :: "'x set" and
     \<phi> :: "'x \<Rightarrow> bool"
+  assumes
+    "finite X"
   shows
-    "finite X \<Longrightarrow> card {x | x. x \<in> X \<and> \<phi> x} = sum (\<lambda>x. if (\<phi> x) then 1::nat else 0) X"
-proof (induction "card X" arbitrary: X)
-  case 0
-  hence "X = {}"
-    by simp
-  hence "{x | x. x \<in> X \<and> \<phi> x} = {}"
+    "card {x | x. x \<in> X \<and> \<phi> x} = sum (\<lambda>x. if (\<phi> x) then 1::nat else 0) X"
+proof -
+  have "X = {x | x. x \<in> X \<and> \<phi> x} \<union> {x | x. x \<in> X \<and> \<not> \<phi> x}"
     by blast
-  hence "card {x | x. x \<in> X \<and> \<phi> x} = 0"
-    by (metis card.empty)
-  moreover have "sum (\<lambda>x. if (\<phi> x) then 1::nat else 0) X = 0"
-    using \<open>X = {}\<close>
-    by simp
-  ultimately show ?case
-    using "0.hyps" "0.prems"
-    by simp
-next
-  case (Suc x)
-  hence "card X > 0"
-    by simp
-  then obtain a :: 'x where "a \<in> X"
-    by fastforce (* TODO *)
-  have "x = card X - 1"
-    using Suc.hyps
-    by simp
-  hence "x = card (X-{a})"
-    using \<open>a \<in> X\<close>
-    by simp
-  hence card_minus_a:
-    "card {x |x. x \<in> X-{a} \<and> \<phi> x} = (\<Sum>x\<in>X-{a}. if \<phi> x then 1::nat else 0)"
-    using Suc.hyps Suc.prems
+  moreover have "{x | x. x \<in> X \<and> \<phi> x} \<inter> {x | x. x \<in> X \<and> \<not> \<phi> x} = {}"
     by blast
-  have 
-    "{x |x. x \<in> X \<and> \<phi> x} = {x |x. x \<in> X-{a} \<and> \<phi> x} \<union> (if (\<phi> a) then {a} else {})"
-    using \<open>a \<in> X\<close>
-    by auto
-  moreover have "{x |x. x \<in> X-{a} \<and> \<phi> x} \<inter> (if (\<phi> a) then {a} else {}) = {}"
+  moreover have "finite {x | x. x \<in> X \<and> \<phi> x}"
+    using assms
     by simp
-  moreover have "finite {x |x. x \<in> X-{a} \<and> \<phi> x}"
-    using Suc.prems
+  moreover have "finite {x | x. x \<in> X \<and> \<not> \<phi> x}"
+    using assms
     by simp
-  moreover have "finite (if (\<phi> a) then {a} else {})"
+  ultimately have split_sum:
+    "sum (\<lambda>x. if (\<phi> x) then 1::nat else 0) X = 
+      sum (\<lambda>x. if (\<phi> x) then 1::nat else 0) {x | x. x \<in> X \<and> \<phi> x}
+      + sum (\<lambda>x. if (\<phi> x) then 1::nat else 0) {x | x. x \<in> X \<and> \<not> \<phi> x}"
+    using sum.union_disjoint[of "{x | x. x \<in> X \<and> \<phi> x}" "{x | x. x \<in> X \<and> \<not> \<phi> x}"]
+    by (metis (no_types, lifting))
+  have "\<forall>x \<in> {x | x. x \<in> X \<and> \<not> \<phi> x}. (\<lambda>x. if (\<phi> x) then 1::nat else 0) x = 0"
     by simp
-  ultimately have
-    "card {x |x. x \<in> X \<and> \<phi> x} = card {x |x. x \<in> X-{a} \<and> \<phi> x} + card (if (\<phi> a) then {a} else {})"
-    using card_Un_Int 
+  hence "sum (\<lambda>x. if (\<phi> x) then 1::nat else 0) {x | x. x \<in> X \<and> \<not> \<phi> x} = 0"
+    by (rule sum.neutral)
+  hence constr_sum:
+    "sum (\<lambda>x. if (\<phi> x) then 1::nat else 0) X =
+      sum (\<lambda>x. if (\<phi> x) then 1::nat else 0) {x | x. x \<in> X \<and> \<phi> x}"
+    using split_sum
+    by presburger
+  have "\<forall>x \<in> {x | x. x \<in> X \<and> \<phi> x}. (\<lambda>x. if (\<phi> x) then 1::nat else 0) x = (\<lambda>x. 1) x"
     by simp
-  hence
-    "card {x |x. x \<in> X \<and> \<phi> x} = 
-      (\<Sum>x\<in>X - {a}. if \<phi> x then 1 else 0) + (if (\<phi> a) then 1::nat else 0)"
-    using card_minus_a
+  hence 
+    "sum (\<lambda>x. if (\<phi> x) then 1::nat else 0) {x | x. x \<in> X \<and> \<phi> x} = 
+      sum (\<lambda>x. 1) {x | x. x \<in> X \<and> \<phi> x}"
+    using sum_coincide[of "{x | x. x \<in> X \<and> \<phi> x}" "(\<lambda>x. if (\<phi> x) then 1::nat else 0)" "\<lambda>x. 1"] 
     by simp
-  moreover have 
-    "(\<Sum>x\<in>X - {a}. if \<phi> x then 1 else 0) =
-      (\<Sum>x\<in>X. if \<phi> x then 1 else 0) - (if \<phi> a then 1::nat else 0)"
-    using sum_diff1[of X "\<lambda>x. if (\<phi> x) then 1::nat else 0" a] Suc.prems \<open>a \<in> X\<close>
-    by (meson sum_diff1_nat)
-  ultimately show ?case
-    by (metis (no_types, lifting) Suc.prems \<open>a \<in> X\<close> add.commute sum.remove)
+  also have "... = card {x | x. x \<in> X \<and> \<phi> x}"
+    using card_eq_sum[of "{x | x. x \<in> X \<and> \<phi> x}"]
+    by simp
+  finally have 
+    "sum (\<lambda>x. if (\<phi> x) then 1::nat else 0) {x | x. x \<in> X \<and> \<phi> x} = card {x | x. x \<in> X \<and> \<phi> x}"
+    by simp
+  thus "card {x |x. x \<in> X \<and> \<phi> x} = (\<Sum>x\<in>X. if \<phi> x then 1 else 0)"
+    using constr_sum
+    by simp
 qed
 
 lemma card_funcset: 
@@ -84,244 +114,153 @@ lemma card_funcset:
   assumes
     "finite X" and "finite Y"
   shows
-    "card (actual_funcset X Y) = (card X)^(card Y)"
-  sorry
-
-section \<open>Simple Voting Games\<close>
-
-fun swing_vote_svg :: "'v set set \<Rightarrow> 'v \<Rightarrow> 'v set \<Rightarrow> ereal" where
-  "swing_vote_svg \<F> v S = (if ((S \<union> {v}) \<in> \<F>) \<noteq> ((S - {v}) \<in> \<F>) then 1 else 0)"
-
-text \<open>
-  First formulation of a Banzhaf index for simple voting games:
-  Count the number of coalitions a voter can change by switching their vote and average over those.
-\<close>
-fun banzhaf_svg_1 :: "'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> ereal" where
-  "banzhaf_svg_1 (V, \<F>) v = (1/(2^(card V))) * (\<Sum> S \<in> Pow V. swing_vote_svg \<F> v S)"
-
-value "banzhaf_svg_1 ({1::nat, 2}, {{1}, {1,2}}) 1"
-
-fun banzhaf_prob_svg :: "'v Simple_Voting_Game \<Rightarrow> 'v set measure" where
-  "banzhaf_prob_svg G = uniform_count_measure (Pow (fst G))"
-
-lemma banzhaf_1_is_prob_svg:
-  fixes
-    V :: "'v set" and
-    \<F> :: "'v set set" and
-    v :: 'v
-  assumes
-    "finite V" and "\<F> \<subseteq> Pow V" and "v \<in> V"
-  shows
-    "banzhaf_svg_1 (V, \<F>) v = emeasure (banzhaf_prob_svg (V, \<F>)) {S | S. swing_vote_svg \<F> v S = 1}"
-proof -
-  let ?swings = "{S | S. swing_vote_svg \<F> v S = 1}"
-  have "\<forall>S. swing_vote_svg \<F> v S = 1 \<longrightarrow> S \<subseteq> V"
-  proof (simp, safe)
-    fix 
-      S :: "'v set" and
-      x :: 'v
-    assume 
-      "insert v S \<in> \<F>" and "x \<in> S"
-    hence "S \<union> {v} \<subseteq> V"
-      using assms(2)
+    "card (actual_funcset X Y) = (card Y)^(card X)"
+  using assms
+proof (induction "card X" arbitrary: X)
+  fix
+    X :: "'x set"
+  assume 
+    "0 = card X"
+    "finite X"
+  hence "actual_funcset X Y = {(\<lambda>x. undefined)}"
+    by simp
+  hence "card (actual_funcset X Y) = 1"
+    by simp
+  moreover have "card Y ^ card X = 1"
+    using assms \<open>0 = card X\<close>
+    by simp
+  ultimately show "card (actual_funcset X Y) = card Y ^ card X"
+    by argo
+next
+  fix
+    n :: nat and
+    X :: "'x set"
+  assume
+    card: "Suc n = card X" and
+    fin: "finite X" and
+    hyp: 
+      "(\<And>X. n = card (X::'x set) \<Longrightarrow> finite X \<Longrightarrow> finite Y \<Longrightarrow> 
+              card (actual_funcset X Y) = card Y ^ card X)"
+  hence "X \<noteq> {}"
+    by auto
+  then obtain x :: 'x where "x \<in> X"
+    by blast
+  hence card_m1: "card (X - {x}) = n"
+    using card
+    by simp
+  hence card': "card (actual_funcset (X - {x}) Y) = card Y ^ card (X - {x})"
+    using fin hyp[of "X - {x}"] assms(2) 
+    by blast
+  let ?F = "\<lambda>(f,y). (\<lambda>z. if z \<in> X then (if z = x then y else (f z)) else undefined)"
+  have "actual_funcset X Y = ?F ` ((actual_funcset (X - {x}) Y) \<times> Y)"
+  proof (safe, goal_cases)
+    case (1 f)
+    let ?f = "\<lambda>z. if z \<in> X - {x} then f z else undefined"
+    have "f = ?F (?f, f x)"
+      using 1
+      unfolding actual_funcset.simps extensional_def Pi_def
+      by auto
+    moreover have "?f \<in> actual_funcset (X - {x}) Y"
+      using 1
+      unfolding actual_funcset.simps extensional_def Pi_def
+      by simp
+    moreover have "f x \<in> Y"
+      using 1 \<open>x \<in> X\<close>
+      unfolding actual_funcset.simps extensional_def Pi_def
       by blast
-    thus "x \<in> V"
-      using \<open>x \<in> S\<close>
+    ultimately show ?case
       by blast
   next
-    fix 
-      S :: "'v set" and
-      x :: 'v
-    assume 
-      "x \<in> S" and "x \<notin> V" and "S - {v} \<in> \<F>"
-    hence "S - {v} \<subseteq> V"
-      using assms(2)
-      by blast
-    hence "S \<subseteq> V"
-      using assms(2) assms(3)
-      by blast
-    hence "x \<in> V"
-      using \<open>x \<in> S\<close>
-      by blast
-    thus "False"
-      using \<open>x \<notin> V\<close>
-      by blast
+    case (2 _ f y)
+    hence "\<forall>z \<in> X - {x}. ?F (f, y) z \<in> Y"
+      unfolding actual_funcset.simps Pi_def
+      by simp
+    moreover have "?F (f, y) x \<in> Y"
+      using 2 \<open>x \<in> X\<close>
+      by simp
+    moreover have "\<forall>z. z \<notin> X \<longrightarrow> ?F (f, y) z = undefined"
+      by simp
+    ultimately show ?case
+      unfolding actual_funcset.simps Pi_def extensional_def
+      by auto
   qed
-  hence subset: "?swings \<subseteq> Pow V"
-    by blast
-  moreover have fin_pow: "finite (Pow V)"
-    using assms(1)
+  moreover have bij: "bij_betw ?F ((actual_funcset (X - {x}) Y) \<times> Y) (actual_funcset X Y)"
+  proof (rule bij_betw_imageI, safe, goal_cases)
+    case 1
+    { (* Show that any two functions that have the same image under ?F are already identical *)
+      fix f :: "'x \<Rightarrow> 'y" and y :: 'y and g :: "'x \<Rightarrow> 'y" and z :: 'y
+      assume 
+        funcset_f: "f \<in> actual_funcset (X - {x}) Y" and
+        funcset_g: "g \<in> actual_funcset (X - {x}) Y" and
+        eq_im: "?F (f, y) = ?F (g, z)" and 
+        "y \<in> Y" and "z \<in> Y"
+      hence "?F (f, y) x = ?F (g, z) x"
+        by simp
+      hence eq_snd: "y = z"
+        using \<open>x \<in> X\<close>
+        by simp
+      have "\<forall>a. a \<in> X - {x} \<longrightarrow> ?F (f, y) a = f a"
+        by simp
+      moreover have "\<forall>a. a \<in> X - {x} \<longrightarrow> ?F (g, z) a = g a"
+        by simp
+      moreover have "\<forall>a. a \<in> X - {x} \<longrightarrow> ?F (f, y) a = ?F (g, z) a"
+        using eq_im
+        by metis
+      ultimately have "\<forall>a. a \<in> X - {x} \<longrightarrow> f a = g a"
+        by presburger
+      moreover have "\<forall>a. a \<notin> X - {x} \<longrightarrow> f a = undefined"
+        using funcset_f
+        unfolding actual_funcset.simps extensional_def
+        by simp
+      moreover have "\<forall>a. a \<notin> X - {x} \<longrightarrow> g a = undefined"
+        using funcset_g
+        unfolding actual_funcset.simps extensional_def
+        by simp
+      ultimately have "\<forall>a. f a = g a"
+        by metis
+      hence "(f, y) = (g, z)"
+        using eq_snd
+        by presburger
+    }
+    thus ?case 
+      unfolding inj_on_def
+      by simp
+  next
+    case (2 _ f y)
+    thus ?case 
+      unfolding actual_funcset.simps extensional_def Pi_def
+      by simp
+  next
+    case (3 f)
+    let ?g = "\<lambda>z. if z \<in> X - {x} then f z else undefined"
+    have "f = ?F (?g, f x)"
+      using 3
+      unfolding actual_funcset.simps extensional_def 
+      by auto
+    moreover have "?g \<in> actual_funcset (X - {x}) Y"
+      using 3
+      unfolding actual_funcset.simps extensional_def Pi_def
+      by simp
+    moreover have "f x \<in> Y"
+      using 3 \<open>x \<in> X\<close>
+      unfolding actual_funcset.simps Pi_def
+      by simp
+    ultimately show ?case
+      by blast
+  qed 
+  ultimately have "card ((actual_funcset (X - {x}) Y) \<times> Y) = card (actual_funcset X Y)"
+    using bij_betw_same_card[OF bij]
+    by satx
+  moreover have 
+    "card ((actual_funcset (X - {x}) Y) \<times> Y) = card Y * card (actual_funcset (X - {x}) Y)"
+    using assms card_cartesian_product[of "actual_funcset (X - {x}) Y" Y]
+    by algebra
+  moreover have "card Y * card Y ^ card (X - {x}) = card Y ^ card X"
+    using \<open>x \<in> X\<close> assms card card_m1 power_Suc2[of "card Y" "card (X - {x})"]
     by simp
-  ultimately have rewrite_prob:
-    "emeasure (banzhaf_prob_svg (V, \<F>)) {S | S. swing_vote_svg \<F> v S = 1}
-      = (card {S | S. swing_vote_svg \<F> v S = 1})/(card (Pow V))"
-    unfolding banzhaf_prob_svg.simps
-    using emeasure_uniform_count_measure[of "Pow V" ?swings]
-    by simp
-  have "ereal (1/(2^(card V))) = ereal (1/(card (Pow V)))"
-    using assms(1) Power.card_Pow[of V, OF assms(1)]
-    by simp
-  hence 
-    "\<forall>x::ereal. (1/(2^(card V))) * x = (1/(card (Pow V))) * x"
-    by (metis ereal_divide ereal_power numeral_eq_ereal one_ereal_def power_eq_0_iff zero_neq_numeral)
-  hence rewrite_pow':
-    "(1/(2^(card V))) * (\<Sum> S \<in> Pow V. swing_vote_svg \<F> v S)
-    = (1/(card (Pow V))) * (\<Sum> S \<in> Pow V. swing_vote_svg \<F> v S)"
-    by simp
-
-  have swing_vote: 
-    "(\<lambda>S. (if swing_vote_svg \<F> v S = 1 then 1 else 0)) = (\<lambda>S. swing_vote_svg \<F> v S)"
-    by auto
-  have swings: "?swings = {S |S. S \<in> Pow V \<and> swing_vote_svg \<F> v S = 1}"
-    using subset
-    by blast
-
-  hence "card ?swings = card {S |S. S \<in> Pow V \<and> swing_vote_svg \<F> v S = 1}"
-    by simp
-  also have 
-    "... = (\<Sum>S\<in>Pow V. if swing_vote_svg \<F> v S = 1 then 1 else 0)"
-    by (rule set_card[of "Pow V" "\<lambda>S. swing_vote_svg \<F> v S = 1", OF fin_pow])
-  also have 
-    "... = (\<Sum>S\<in>Pow V. swing_vote_svg \<F> v S)"
-    using swing_vote
-    sorry
-  finally have
-    "(\<Sum>S\<in>Pow V. swing_vote_svg \<F> v S) = card {S |S. swing_vote_svg \<F> v S = 1}"
-    by simp
-  hence rewrite_pow:
-    "banzhaf_svg_1 (V, \<F>) v = (1/(card (Pow V))) * card {S | S. swing_vote_svg \<F> v S = 1}"
-    using rewrite_pow'
-    by simp
-  thus ?thesis
-    using rewrite_prob
-    by simp
-qed
-
-section \<open>Voting Rules\<close>
-
-fun differ_only_on :: "'v \<Rightarrow> ('v \<Rightarrow> 'b) \<Rightarrow> ('v \<Rightarrow> 'b) \<Rightarrow> bool" where
-  "differ_only_on v p p' = (\<forall>x. p x \<noteq> p' x \<longrightarrow> x = v)"
-
-fun swing_vote_rule :: "(('v \<Rightarrow> 'b) \<Rightarrow> 'r) \<Rightarrow> 'v \<Rightarrow> ('v \<Rightarrow> 'b) \<Rightarrow> ('v \<Rightarrow> 'b) \<Rightarrow> ereal" where
-  "swing_vote_rule f v p p' = (if (differ_only_on v p p' \<and> f p \<noteq> f p') then 1 else 0)"
-
-text \<open>
-  First formulation of a Banzhaf index for voting rules:
-  Count the number of profiles where the outcome would change if a voter changed their ballot
-  while all other voters kept theirs, then average over all profiles.
-\<close>
-
-fun banzhaf_rule_1 :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> 'v \<Rightarrow> ereal" where
-  "banzhaf_rule_1 (V, B, R, f) v = 
-    (1/(real ((card B)^(card V)))) * 
-      (\<Sum> p \<in> actual_funcset V B. 
-        Max {characteristic (swing_vote_rule f v p) {1} q | q. q \<in> actual_funcset V B})" 
-
-(* TODO: test value banzhaf_rule_1 *)
-
-(* Banzhaf index where probability interpretation breaks: *)
-fun banzhaf_rule_2 :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> 'v \<Rightarrow> ereal" where
-  "banzhaf_rule_2 (V, B, R, f) v = 
-    (1/(real ((card B)^(card V)))) * 
-      (\<Sum> p \<in> actual_funcset V B. \<Sum> q \<in> actual_funcset V B. (swing_vote_rule f v p q))" 
-(* Additional danger of not stating the intended voting power measure
-when formalizing with weird types: Almost wrote \<^latex>\<open>p \<in> UNIV\<close> here *)
-
-fun banzhaf_prob_rule :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> ('v \<Rightarrow> 'b) measure" where
-  "banzhaf_prob_rule (V, B, R, f) = uniform_count_measure (actual_funcset V B)"
-                                                
-lemma banzhaf_1_is_prob_rule:
-  fixes
-    X :: "('v, 'b, 'r) Voting_Rule" and
-    v :: 'v
-  assumes
-    "finite (voters X)" and "finite (ballots X)" and "v \<in> V"
-  shows
-    "banzhaf_rule_1 X v = emeasure (banzhaf_prob_rule X) 
-      {p | p. p \<in> actual_funcset (voters X) (ballots X) 
-        \<and> (\<exists>q \<in> actual_funcset (voters X) (ballots X). swing_vote_rule (rule X) v p q = 1)}"
-proof -
-  let ?V = "voters X"
-  let ?B = "ballots X"
-  let ?f = "rule X"
-  let ?swings = 
-    "{p |p. p \<in> actual_funcset ?V ?B \<and> (\<exists>q\<in>actual_funcset ?V ?B. swing_vote_rule ?f v p q = 1)}"
-  have "finite (actual_funcset ?V ?B)"
-    sorry
-  moreover have "?swings \<subseteq> actual_funcset ?V ?B"
-    sorry
-  ultimately have prob:
-    "emeasure (uniform_count_measure (actual_funcset ?V ?B)) ?swings
-      = (real (card ?swings))/(real (card (actual_funcset ?V ?B)))"
-    using emeasure_uniform_count_measure[of "actual_funcset ?V ?B" ?swings]
-    by simp
-  have "X = (?V, ?B, results X, ?f)"
-    by simp
-  hence
-    "banzhaf_prob_rule X = uniform_count_measure (actual_funcset ?V ?B)"
-    by (metis banzhaf_prob_rule.simps)
-  with prob have prob_rewrite:
-    "banzhaf_prob_rule X ?swings = (real (card ?swings))/(real (card (actual_funcset ?V ?B)))"
-    by simp
-  have
-    "(\<Sum> p \<in> actual_funcset ?V ?B. 
-        Max {characteristic (swing_vote_rule ?f v p) {1} q | q. q \<in> actual_funcset ?V ?B})
-      = card ?swings"
-    sorry
-  hence
-    "banzhaf_rule_1 X v = (1/(real ((card ?B)^(card ?V)))) * (card ?swings)"
-    sorry
-  hence
-    "banzhaf_rule_1 X v = (1/(real (card (actual_funcset ?V ?B)))) * (card ?swings)"
-    using card_funcset[of ?V ?B] assms
-    sorry
-  hence power_rewrite:
-    "banzhaf_rule_1 X v = (real (card ?swings))/(real (card (actual_funcset ?V ?B)))"
-    by argo
-  thus ?thesis
-    using prob_rewrite
+  ultimately show "card (actual_funcset X Y) = card Y ^ card X"
+    using card'
     by simp
 qed
 
-text \<open>
-  The second Banzhaf definition on voting rules generally is an expected value rather 
-  than a probability distribution. 
-  However, depending on the voter and the event, it may align with individual probabilities.
-  
-  To make the difference between this probabilistic interpretation and the one from
-  banzhaf_1_is_prob_rule clear, we show that if there is a voter who is able to influence the
-  election result in at least one way for every ballot profile and at least two ways for at
-  least one ballot profile, their Banzhaf index is > 1 and thus no probability.
-\<close>
-lemma baby_example_banzhaf_2_not_prob:
-  fixes                                    
-    X :: "('v, 'b, 'r) Voting_Rule" and
-    v :: 'v              
-  assumes
-    "finite (voters X)" and 
-    "finite (ballots X)" and 
-    "v \<in> V" and
-    always_influence: (* v can influence the election result in every profile *)
-      "\<forall>p \<in> actual_funcset (voters X) (ballots X). \<exists>q \<in> actual_funcset (voters X) (ballots X). 
-        swing_vote_rule (rule X) v p q = 1" and
-    influence_options: (* v has multiple options to influence the election result in at least one profile *)
-      "\<exists>p \<in> actual_funcset (voters X) (ballots X). 
-        \<exists>q \<in> actual_funcset (voters X) (ballots X). \<exists>q' \<in> actual_funcset (voters X) (ballots X). 
-          q \<noteq> q' \<and> swing_vote_rule (rule X) v p q = 1 \<and> swing_vote_rule (rule X) v p q' = 1"
-  shows
-    "banzhaf_rule_2 X v > 1"
-  sorry
-
-lemma banzhaf_2_is_expectation_rule:
-  "True" (* TODO *)
-  sorry
-
-section \<open>Strategic Games\<close>
-
-text \<open>
-  First formulation of a Banzhaf index for strategic games: TODO
-\<close>
-fun banzhaf_strat_1 :: "('v, 'a, 'r) Strategic_Game \<Rightarrow> 'v \<Rightarrow> ereal" where
-  "banzhaf_strat_1 (V, R, A, P, f) v = 0" (* TODO *)
-                     
 end
