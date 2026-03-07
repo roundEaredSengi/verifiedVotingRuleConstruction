@@ -33,6 +33,9 @@ a vector of sets (of strategies per voters), a vector of relations
 type_synonym ('v, 'a, 'r) Strategic_Game = 
   "'v set \<times> 'r set \<times> ('v \<Rightarrow> 'a set) \<times> ('v \<Rightarrow> 'r rel) \<times> (('v \<Rightarrow> 'a) \<Rightarrow> 'r)"
 
+abbreviation voters_strat :: "('v, 'a, 'r) Strategic_Game \<Rightarrow> 'v set" where
+  "voters_strat G \<equiv> fst G"
+
 text \<open>
 A solution concept is a set of ideal, according to some optimality conditions,
 strategy profiles to be chosen by players in a strategic game.

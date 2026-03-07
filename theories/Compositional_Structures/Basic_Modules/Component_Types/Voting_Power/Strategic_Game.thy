@@ -39,12 +39,27 @@ fun swing_vote_success ::
       \<and> (outcome_map G A, outcome_map G A') \<in> preferences G v) then 1 else 0)"
 
 fun banzhaf_strat_3 ::
-  "('v, 'a, 'r) Strategic_Game \<Rightarrow> ('v, 'a, 'r) Solution_Concept \<Rightarrow> 'v \<Rightarrow> ereal" where
-  "banzhaf_strat_3 G C v = (1/(card (C G)))
+  "('v, 'a, 'r) Solution_Concept \<Rightarrow> (('v, 'a, 'r) Strategic_Game, 'v) Voting_Power" where
+  "banzhaf_strat_3 C G v = (1/(card (C G)))
     * (\<Sum> A \<in> C G. (Max {characteristic (swing_vote_success G v A) {1} A' | A'. A' \<in> C G}))"
 
 section \<open>Voting Power Properties\<close>
 
+fun is_null_player_strat :: "('v, 'a, 'r) Strategic_Game \<Rightarrow> 'v \<Rightarrow> bool" where
+  "is_null_player_strat G v = (\<forall>A. range (swing_vote_success G v A) = {0})"
+
+fun null_player_axiom_strat :: 
+  "('v, 'a, 'r) Strategic_Game set \<Rightarrow> (('v, 'a, 'r) Strategic_Game, 'v) Voting_Power \<Rightarrow> bool" where
+  "null_player_axiom_strat X \<delta> = 
+    (\<forall>G \<in> X. \<forall>v \<in> voters_strat G. is_null_player_strat G v \<longrightarrow> \<delta> G v = 0)"
+
 section \<open>Property Proofs\<close>
+
+lemma  banzhaf_3_satisfies_null_player_axiom:
+  fixes
+    C :: "('v, 'a, 'r) Solution_Concept"
+  shows
+    "null_player_axiom_strat UNIV (banzhaf_strat_3 C)"
+  sorry
 
 end

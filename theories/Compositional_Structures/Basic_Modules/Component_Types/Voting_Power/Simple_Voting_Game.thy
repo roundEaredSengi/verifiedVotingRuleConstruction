@@ -54,16 +54,17 @@ text \<open>
   A player is called null player if they do not have any swing votes.
   A voting power index satisfies the null player axiom if null players have 0 power in every SVG.
 \<close>
-fun null_player_axiom_svg :: "('v Simple_Voting_Game, 'v) Voting_Power_Axiom" where
-  "null_player_axiom_svg \<G> \<delta> = 
+fun null_player_axiom_svg_on :: "('v Simple_Voting_Game, 'v) Voting_Power_Axiom" where
+  "null_player_axiom_svg_on \<G> \<delta> = 
     (\<forall>G \<in> \<G>. \<forall>v \<in> voters_svg G. is_null_player G v \<longrightarrow> \<delta> G v = 0)"
 
 fun block_svg :: "'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> 'v \<Rightarrow> 'v Simple_Voting_Game" where
   "block_svg G v w = (voters_svg G - {w}, {S - {w} |S. (v \<in> S \<longleftrightarrow> w \<in> S) \<and> S \<in> coalitions G})"
 
-fun block_axiom_svg :: 
+(* TODO: Formulate axiom over all SVGs that have some merged voter instead of calculating block SVG *)
+fun block_axiom_svg_on :: 
   "('v Simple_Voting_Game, 'v) Voting_Power_Axiom" where
-  "block_axiom_svg \<G> \<delta> = (\<forall>G \<in> \<G>. \<forall>v \<in> voters_svg G. \<forall>w \<in> voters_svg G. 
+  "block_axiom_svg_on \<G> \<delta> = (\<forall>G \<in> \<G>. \<forall>v \<in> voters_svg G. \<forall>w \<in> voters_svg G. 
     (w \<noteq> v \<longrightarrow> (\<delta> (block_svg G v w) v \<ge> Max{\<delta> G v, \<delta> G w})))"
 
 fun iso_svg :: 
@@ -71,15 +72,15 @@ fun iso_svg ::
   "iso_svg \<phi> G1 G2 = 
     (bij_betw \<phi> (voters_svg G1) (voters_svg G2) \<and> (image \<phi>) ` (coalitions G1) = coalitions G2)"
 
-fun symmetry_axiom_svg :: "('v Simple_Voting_Game, 'v) Voting_Power_Axiom" where
-  "symmetry_axiom_svg \<G> \<delta> = 
+fun symmetry_axiom_svg_on :: "('v Simple_Voting_Game, 'v) Voting_Power_Axiom" where
+  "symmetry_axiom_svg_on \<G> \<delta> = 
     (\<forall>G1 \<in> \<G>. \<forall>G2 \<in> \<G>. \<forall>\<phi>. iso_svg \<phi> G1 G2 \<longrightarrow> (\<forall>v \<in> voters_svg G1. \<delta> G1 v = \<delta> G2 (\<phi> v)))"
 
 section \<open>Property Proofs\<close>
 
 lemma banzhaf_1_satisfies_null_player_axiom: 
-  "null_player_axiom_svg UNIV banzhaf_svg_1"
-proof (simp only: null_player_axiom_svg.simps fst_def, safe)
+  "null_player_axiom_svg_on UNIV banzhaf_svg_1"
+proof (unfold null_player_axiom_svg_on.simps fst_def, safe)
   fix
     V :: "'a set" and
     \<F> :: "'a set set" and
@@ -87,7 +88,7 @@ proof (simp only: null_player_axiom_svg.simps fst_def, safe)
   assume
     "v \<in> V" and "is_null_player (V, \<F>) v"
   hence "range (swing_vote_svg \<F> v) = {0}"
-    by simp
+  by simp
   hence "\<forall>S. swing_vote_svg \<F> v S = 0"
     unfolding fst_def snd_def
     by fast
@@ -98,12 +99,12 @@ proof (simp only: null_player_axiom_svg.simps fst_def, safe)
 qed 
 
 lemma banzhaf_1_satisfies_symmetry_axiom:
-  "symmetry_axiom_svg UNIV banzhaf_svg_1"
+  "symmetry_axiom_svg_on UNIV banzhaf_svg_1"
   sorry
 
 lemma banzhaf_1_satisfies_block_axiom: 
-  "block_axiom_svg monotone_SVGs banzhaf_svg_1"
-proof (simp only: block_axiom_svg.simps fst_def snd_def, safe, goal_cases)
+  "block_axiom_svg_on monotone_SVGs banzhaf_svg_1"
+proof (simp only: block_axiom_svg_on.simps fst_def snd_def, safe, goal_cases)
   case (1 V \<F> v w)
   then show ?case
   proof (cases "finite V")
