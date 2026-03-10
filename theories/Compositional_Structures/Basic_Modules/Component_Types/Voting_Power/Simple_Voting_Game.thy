@@ -35,8 +35,8 @@ text \<open>
   Count the number of coalitions a voter can change by switching their vote and average over those.
 \<close>
 fun banzhaf_svg_1 :: "('v Simple_Voting_Game, 'v) Voting_Power" where
-  "banzhaf_svg_1 (V, \<F>) v = 
-    (1/(2^(card V))) * (\<Sum> S \<in> Pow V. swing_vote_svg \<F> v S)"
+  "banzhaf_svg_1 (V, \<F>) v = (if infinite V then 0 else
+    (1/(2^(card V))) * (\<Sum> S \<in> Pow V. swing_vote_svg \<F> v S))"
 (* TODO: Original definition just assumes finite voter sets.
 Formalizing the indices here forces one to explicitly think about infinite sets 
 since every statement about the index includes infinite sets in its domain. 

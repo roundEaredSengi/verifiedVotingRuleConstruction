@@ -21,10 +21,10 @@ text \<open>
   while all other voters kept theirs, then average over all profiles.
 \<close>
 fun banzhaf_rule_1 :: "(('v, 'b, 'r) Voting_Rule, 'v) Voting_Power" where
-  "banzhaf_rule_1 (V, B, R, f) v = 
+  "banzhaf_rule_1 (V, B, R, f) v = (if infinite V then 0 else
     (1/(real ((card B)^(card V)))) * 
       (\<Sum> p \<in> actual_funcset V B. 
-        Max {characteristic (swing_vote_rule f v p) {1} q | q. q \<in> actual_funcset V B})" 
+        Max {characteristic (swing_vote_rule f v p) {1} q | q. q \<in> actual_funcset V B}))" 
 
 (* TODO: test value banzhaf_rule_1 *)
 
