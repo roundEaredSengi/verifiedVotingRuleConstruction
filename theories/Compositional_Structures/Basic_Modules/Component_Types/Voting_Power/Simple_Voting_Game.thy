@@ -42,6 +42,12 @@ Formalizing the indices here forces one to explicitly think about infinite sets
 since every statement about the index includes infinite sets in its domain. 
 Here, we define each voter's power to be 0 if V is infinite. *)
 
+(* fun finite_test:: "nat set \<Rightarrow> bool" where
+  "finite_test N = finite N"
+
+value "finite {1::nat}" (* Zulip? *)
+value "banzhaf_svg_1 ({1::nat, 2}, {{1}, {1,2}}) 1" *)
+
 section \<open>Voting Power Properties\<close>
 
 fun banzhaf_prob_svg :: "'v Simple_Voting_Game \<Rightarrow> 'v set measure" where
@@ -123,7 +129,7 @@ proof (simp only: block_axiom_svg_on.simps fst_def snd_def, safe, goal_cases)
       by (simp add: one_ereal_def) (* TODO why is this needed? *)
     finally have card1: "1/((2::ereal)^(card (V - {w}))) = (2::ereal) * (1/(2^(card V)))"
       by simp
-    thus ?thesis
+    thus ?thesis (* TODO *)
       sorry
   next
     case False
@@ -234,7 +240,9 @@ proof -
 qed
 
 section \<open>Code Generation and Stuff\<close>
+value "card (X::(nat set))"
 
-value "banzhaf_svg_1 ({1::nat, 2}, {{1}, {1,2}}) 1"
+(* Why finite? *)
+
 
 end

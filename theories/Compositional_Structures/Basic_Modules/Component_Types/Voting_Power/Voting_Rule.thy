@@ -10,6 +10,30 @@ section \<open>Voting Model\<close>
 fun differ_only_on :: "'v \<Rightarrow> ('v \<Rightarrow> 'b) \<Rightarrow> ('v \<Rightarrow> 'b) \<Rightarrow> bool" where
   "differ_only_on v p p' = (\<forall>x. p x \<noteq> p' x \<longrightarrow> x = v)"
 
+lemma neq_differ_exactly_on:
+  fixes f :: "'x \<Rightarrow> 'y" and g :: "'x \<Rightarrow> 'y" and x :: 'x and x' :: 'x
+  assumes "f \<noteq> g" and "differ_only_on x f g"
+  shows "(f x' \<noteq> g x') = (x' = x)"
+proof -
+  have "\<exists>x''. f x'' \<noteq> g x''"
+    using assms
+    by auto
+  then obtain x'' :: 'x where "f x'' \<noteq> g x''"
+    by meson
+  moreover have "x'' \<noteq> x \<Longrightarrow> f x'' = g x''"
+    using assms
+    by auto
+  ultimately have "f x \<noteq> g x"
+    by metis
+  hence "x' = x \<Longrightarrow> f x' \<noteq> g x'"
+    by simp
+  moreover have "f x' \<noteq> g x' \<Longrightarrow> x' = x"
+    using assms
+    by simp
+  ultimately show ?thesis
+    by satx
+qed
+
 section \<open>Voting Power Indices\<close>
 
 fun swing_vote_rule :: "(('v \<Rightarrow> 'b) \<Rightarrow> 'r) \<Rightarrow> 'v \<Rightarrow> ('v \<Rightarrow> 'b) \<Rightarrow> ('v \<Rightarrow> 'b) \<Rightarrow> ereal" where
@@ -100,11 +124,6 @@ proof (simp only: null_player_axiom_rule.simps, safe, goal_cases)
       by simp
   qed
 qed
-
-lemma banzhaf_1_satisfies_block_axiom: 
-  (* Probably cannot prove the axiom on the set of all voting rules, see SVGs *)
-  "block_axiom_rule TODO_SET banzhaf_rule_1"
-  sorry
                                                 
 lemma banzhaf_1_is_prob_rule:
   fixes

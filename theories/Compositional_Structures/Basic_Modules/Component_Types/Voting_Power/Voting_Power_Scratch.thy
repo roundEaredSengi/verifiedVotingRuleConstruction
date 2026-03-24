@@ -12,9 +12,11 @@ type_synonym ('x, 'v) Voting_Power_Axiom = "'x set \<Rightarrow> ('x, 'v) Voting
 
 section \<open>Auxiliary Definitions and Lemmas\<close>
 
+(* TODO PiE (FuncSet) instead of actual_funcset *)
 fun actual_funcset :: "'x set \<Rightarrow> 'y set \<Rightarrow> ('x \<Rightarrow> 'y) set" where
   "actual_funcset X Y = funcset X Y \<inter> extensional X"
 
+(* TODO function like "characteristic" surely already exists somewhere? *)
 fun characteristic :: "('x \<Rightarrow> 'y) \<Rightarrow> 'y set \<Rightarrow> 'x \<Rightarrow> nat" where
   "characteristic f Y x = (if f x \<in> Y then 1 else 0)"
 
@@ -297,5 +299,35 @@ next
     using card'
     by simp
 qed
+
+
+lemma fin_funcset:
+    fixes
+    X :: "'x set" and Y :: "'y set"
+  assumes
+    "finite X" and "finite Y"
+  shows
+    "finite (actual_funcset X Y)"
+proof (cases "Y = {}")
+  case True
+  hence "X = {} \<Longrightarrow> actual_funcset X Y = {\<lambda>x. undefined}"
+    by simp
+  moreover have "X \<noteq> {} \<Longrightarrow> actual_funcset X Y = {}"
+    using True
+    by auto
+  ultimately show ?thesis
+    by fastforce
+next
+  case False
+  hence "card Y > 0"
+    using assms
+    by auto
+  hence "card (actual_funcset X Y) > 0"
+    using card_funcset[of X Y, OF assms]
+    by presburger
+  then show ?thesis 
+    by (rule card_ge_0_finite)
+qed
+  
 
 end
