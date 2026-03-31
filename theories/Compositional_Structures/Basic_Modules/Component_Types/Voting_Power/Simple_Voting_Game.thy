@@ -64,14 +64,19 @@ fun null_player_axiom_svg_on :: "('v Simple_Voting_Game, 'v) Voting_Power_Axiom"
   "null_player_axiom_svg_on \<G> \<delta> = 
     (\<forall>G \<in> \<G>. \<forall>v \<in> voters_svg G. is_null_player G v \<longrightarrow> \<delta> G v = 0)"
 
-fun block_svg :: "'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> 'v \<Rightarrow> 'v Simple_Voting_Game" where
-  "block_svg G v w = (voters_svg G - {w}, {S - {w} |S. (v \<in> S \<longleftrightarrow> w \<in> S) \<and> S \<in> coalitions G})"
+fun block_svg :: "'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> 'v \<Rightarrow> 'v \<Rightarrow> bool" where
+  "block_svg G G' v w x = (
+    x \<notin> voters_svg G \<and>
+    voters_svg G' = voters_svg G - {v, w} \<union> {x} \<and> 
+    coalitions G' = {S - {v, w} \<union> {x} |S. v \<in> S \<and> w \<in> S \<and> S \<in> coalitions G} \<union>
+                    {S |S. v \<notin> S \<and> w \<notin> S \<and> S \<in> coalitions G}
+  )"
 
 (* TODO: Formulate axiom over all SVGs that have some merged voter instead of calculating block SVG *)
-fun block_axiom_svg_on :: 
+fun block_axiom_svg_on ::
   "('v Simple_Voting_Game, 'v) Voting_Power_Axiom" where
-  "block_axiom_svg_on \<G> \<delta> = (\<forall>G \<in> \<G>. \<forall>v \<in> voters_svg G. \<forall>w \<in> voters_svg G. 
-    (w \<noteq> v \<longrightarrow> (\<delta> (block_svg G v w) v \<ge> Max{\<delta> G v, \<delta> G w})))"
+  "block_axiom_svg_on \<G> \<delta> = (\<forall>G \<in> \<G>. \<forall>v \<in> voters_svg G. \<forall>w \<in> voters_svg G. \<forall>x.
+    (w \<noteq> v \<longrightarrow> (\<forall>G'. block_svg G G' v w x \<longrightarrow> (\<delta> G' x \<ge> Max{\<delta> G v, \<delta> G w}))))"
 
 fun iso_svg :: 
   "('v \<Rightarrow> 'v) \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> bool" where

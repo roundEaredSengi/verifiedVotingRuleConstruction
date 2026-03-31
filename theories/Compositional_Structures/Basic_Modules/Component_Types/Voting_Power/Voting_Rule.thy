@@ -68,13 +68,15 @@ fun is_null_player_rule :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> 'v \<Rightarr
 fun null_player_axiom_rule :: "(('v, 'b, 'r) Voting_Rule, 'v) Voting_Power_Axiom" where
   "null_player_axiom_rule \<R> \<delta> = (\<forall>f \<in> \<R>. \<forall>v \<in> voters f. is_null_player_rule f v \<longrightarrow> \<delta> f v = 0)"
 
-(* TODO evaluation order of let? *)
-fun block_rule :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> 'v \<Rightarrow> 'v \<Rightarrow> ('v, 'b, 'r) Voting_Rule \<times> 'v" where
-  "block_rule (V,B,R,f) v w = (let x = (SOME x::'v. x \<notin> V) in (((V - {v,w}) \<union> {x}, B, R, f), x))"
+fun block_rule :: 
+  "('v, 'b, 'r) Voting_Rule \<Rightarrow> ('v, 'b, 'r) Voting_Rule \<Rightarrow> 'v \<Rightarrow> 'v \<Rightarrow> 'v \<Rightarrow> bool" where
+  "block_rule (V,B,R,f) (V',B',R',f') v w x = 
+    (x \<notin> V \<and> V' = V - {v,w} \<union> {x} \<and> B' = B \<and> R' = R \<and> f' = f)"
 
 fun block_axiom_rule :: "(('v, 'b, 'r) Voting_Rule, 'v) Voting_Power_Axiom" where
   "block_axiom_rule \<R> \<delta> = 
-    (\<forall>f \<in> \<R>. \<forall>v\<in>(voters f). \<forall>w\<in>(voters f). (uncurry \<delta>) (block_rule f v w) \<ge> Max{\<delta> f v, \<delta> f w})"
+    (\<forall>f \<in> \<R>. \<forall>f'. \<forall>v \<in> (voters f). \<forall>w \<in> (voters f). \<forall>x.
+      block_rule f f' v w x \<longrightarrow> \<delta> f' x \<ge> Max{\<delta> f v, \<delta> f w})"
 
 fun banzhaf_prob_rule :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> ('v \<Rightarrow> 'b) measure" where
   "banzhaf_prob_rule (V, B, R, f) = uniform_count_measure (actual_funcset V B)"

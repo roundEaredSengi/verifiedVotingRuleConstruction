@@ -40,6 +40,14 @@ section \<open>SVG-Voting-Rule-Definitions\<close>
 fun preimg_in :: "'x set \<Rightarrow> ('x \<Rightarrow> 'y) \<Rightarrow> 'y set \<Rightarrow> 'x set" where
   "preimg_in X f Y = {x |x. x \<in> X \<and> f x \<in> Y}"
 
+text \<open>
+Ad hoc definition: A voting rule is equivalent to an SVG G if it "behaves like the SVG".
+For this to be the case, the voting rule must have exactly two possible ballots,
+two possible results and there must be a bijection between ballots and results that yields a notion
+of "voting for a specific result" (by voting for its corresponding ballot).
+Given this bijection, there must be a distinguished result that corresponds to the "yes" option
+in the SVG G.
+\<close>
 definition svg_rule_equivalence :: 
   "('v, 'b, 'r) Voting_Rule \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> bool" where
   "svg_rule_equivalence \<R> \<G> = (
@@ -51,6 +59,10 @@ definition svg_rule_equivalence ::
     )
   )"
 
+text \<open>
+Ad hoc definition: A voting power index formulated on the domain of voting rules is equivalent
+to a voting power index on the domain of SVGs if they yield the same power given equivalent inputs.
+\<close>
 definition svg_rule_power_equivalence ::
   "(('v, 'b, 'r) Voting_Rule, 'v) Voting_Power \<Rightarrow> ('v Simple_Voting_Game, 'v) Voting_Power \<Rightarrow> bool"
   where 
@@ -58,6 +70,11 @@ definition svg_rule_power_equivalence ::
       \<forall>\<R> \<G>. svg_rule_equivalence \<R> \<G> \<longrightarrow> (\<forall>v \<in> voters \<R> \<inter> fst \<G>. \<delta>1 \<R> v = \<delta>2 \<G> v)
     )"
 
+text \<open>
+Ad hoc definition: Two voting power axioms, where one is formulated on the domain of SVG voting
+power indices and the other is defined on the domain of voting rule power indices, are equivalent
+if they yield the same truth values on equivalent inputs.
+\<close>
 definition svg_rule_axiom_equivalence ::
   "(('v, 'b, 'r) Voting_Rule, 'v) Voting_Power_Axiom \<Rightarrow> 
     ('v Simple_Voting_Game, 'v) Voting_Power_Axiom \<Rightarrow> bool" where
@@ -67,6 +84,10 @@ definition svg_rule_axiom_equivalence ::
 
 section \<open>Auxiliary Lemmas\<close>
 
+text \<open>
+The preimage of a single element y under a bijective map is the 
+singleton set containing exactly the inverse of y under the bijection.
+\<close>
 lemma preimg_the_inv:
   fixes
     X :: "'x set" and Y :: "'y set" and \<pi> :: "'x \<Rightarrow> 'y" and y :: 'y
@@ -97,6 +118,10 @@ next
     by simp
 qed
 
+text \<open>
+For a given non-empty proper subset S of a given codomain and for every subset T of a given domain,
+we can find a function f s.t. the preimage of S under f is precisely T.
+\<close>
 lemma preimg_funcset:
   fixes
     X :: "'x set" and Y :: "'y set" and S :: "'y set"
@@ -127,6 +152,10 @@ proof (simp, safe)
     by auto
 qed
 
+text \<open>
+The preimage of a non-empty set that is not the whole codomain under a 
+bijective map is also non-empty and does not equal the whole domain.
+\<close>
 lemma preimg_bij_non_trivial: 
   fixes
     X :: "'x set" and Y :: "'y set" and S :: "'y set" and \<pi> :: "'x \<Rightarrow> 'y"
@@ -160,6 +189,11 @@ next
     by metis
 qed
 
+text \<open>
+A function whose codomain contains more than 1 element can be update in a single element of 
+its domain by just assigning another value from the codomain to that specific element.
+\<close>
+(* TODO formulate using "obtains" *)
 lemma update_function:
   fixes f :: "'x \<Rightarrow> 'y" and X :: "'x set" and Y :: "'y set" and x :: 'x
   assumes "x \<in> X" and "Y \<noteq> {}" and "card Y \<noteq> 1" and "f \<in> actual_funcset X Y" 
@@ -186,12 +220,18 @@ proof -
     by meson
 qed
 
+text \<open>
+If a function yields only extended reals that are not infinite, then
+summing over the extended reals and casting the sum to a real yields the same value
+as casting the summands to reals and then summing over the cast summands.
+\<close>
+(* TODO formulate without f *)
 lemma ereal_sum:
   fixes X :: "'x set" and f :: "'x \<Rightarrow> ereal"
   assumes
     "\<forall>x \<in> X. f x \<notin> {\<infinity>, -\<infinity>}" and "finite X"
   shows "(\<Sum>x \<in> X. f x) = (\<Sum>x \<in> X. real_of_ereal (f x))"
-(* TODO use sum_comp_morphism[of real_of_ereal f X] somehow? *)
+(* TODO use/generalize sum_comp_morphism[of real_of_ereal f X] for carrier sets somehow? *)
   using assms
 proof (induction "card X" arbitrary: X)
   case 0
@@ -235,33 +275,185 @@ next
   finally show ?case by satx
 qed
 
+text \<open>
+The maximum of the characteristic function of a predicate is 1 iff there is 
+at least one element satisfying the predicate, otherwise the maximum is 0.
+\<close>
 lemma char_helper: 
   fixes
     X :: "'x set" and \<phi> :: "'x \<Rightarrow> bool"
   assumes
     "X \<noteq> {}"
   shows
-    "Max {characteristic \<phi> {True} x | x. x \<in> X} = (if {x. x \<in> X \<and> \<phi> x} \<noteq> {} then 1 else 0)"
+    "Max {characteristic \<phi> {True} x | x. x \<in> X} = 
+      (if {x. x \<in> X \<and> \<phi> x} \<noteq> {} then 1::nat else 0::nat)"
 proof -
+  let ?all_zero = "\<forall>x \<in> X. characteristic \<phi> {True} x = 0" and
+      ?ex_one = "\<exists>x \<in> X. characteristic \<phi> {True} x = 1" and
+      ?ite = "if {x. x \<in> X \<and> \<phi> x} \<noteq> {} then 1::nat else 0::nat"
   have valued_01: "{characteristic \<phi> {True} x | x. x \<in> X} \<subseteq> {0, 1}"
     by auto
-  moreover have "finite {0, 1}"
-    by simp
-  ultimately have "finite {characteristic \<phi> {True} x | x. x \<in> X}"
-    by (rule Finite_Set.finite_subset)
-  moreover have "{characteristic \<phi> {True} x | x. x \<in> X} \<noteq> {}"
+  moreover with this have fin: "finite {characteristic \<phi> {True} x | x. x \<in> X}"
+    by (simp add: finite_subset)
+  moreover have non_empty: "{characteristic \<phi> {True} x | x. x \<in> X} \<noteq> {}"
     using assms
     by simp
-  ultimately have "Max {characteristic \<phi> {True} x | x. x \<in> X} \<in> {0, 1}"
-    using Max_in[of "{characteristic \<phi> {True} x | x. x \<in> X}"] valued_01
-    by blast
-  hence "\<exists>x \<in> X. characteristic \<phi> {True} x = Max {characteristic \<phi> {True} x | x. x \<in> X}"
-    sorry
+  ultimately have leq_1: "Max {characteristic \<phi> {True} x | x. x \<in> X} \<le> 1"
+    using Max_in
+    by auto
+  have cases: "?all_zero \<or> ?ex_one"
+    by auto
+  moreover have max_0: "?all_zero \<longrightarrow> Max {characteristic \<phi> {True} x | x. x \<in> X} = 0"
+    using assms Max_in[of "{characteristic \<phi> {True} x | x. x \<in> X}", OF fin non_empty]
+    by fastforce (* TODO smaller steps? *)
+  moreover have max_1: "?ex_one \<longrightarrow> Max {characteristic \<phi> {True} x | x. x \<in> X} = 1"
+    using leq_1 Max_ge[OF fin, of 1]
+    by force (* TODO smaller steps? *)
+  ultimately have "\<exists>x \<in> X. characteristic \<phi> {True} x = Max {characteristic \<phi> {True} x | x. x \<in> X}"
+    using assms
+    by fastforce
   then obtain x :: 'x where "x \<in> X" and
-    "characteristic \<phi> {True} x = Max {characteristic \<phi> {True} x | x. x \<in> X}"
+    is_arg_max: "characteristic \<phi> {True} x = Max {characteristic \<phi> {True} x | x. x \<in> X}"
+    by metis (* TODO use obtain_MAX lemma for infinite X instead? *)
+  have "?ite = 1 \<longleftrightarrow> ({x. x \<in> X \<and> \<phi> x} \<noteq> {})"
+    by presburger
+  hence "?ite = 1 \<longleftrightarrow> (\<exists>x \<in> X. characteristic \<phi> {True} x = 1)"
+    by auto
+  hence "?ite = 1 \<longleftrightarrow> (\<exists>x \<in> X. characteristic \<phi> {True} x = 1)"
+    by auto
+  moreover have 
+    "(\<exists>x \<in> X. characteristic \<phi> {True} x = 1) \<longrightarrow> (Max {characteristic \<phi> {True} x | x. x \<in> X} = 1)"
+    using leq_1 Max_ge[OF fin, of 1]
+    by force
+  moreover have 
+    "(Max {characteristic \<phi> {True} x | x. x \<in> X} = 1) \<longrightarrow> (characteristic \<phi> {True} x = 1)"
+    using is_arg_max
     by metis
+  moreover have "(characteristic \<phi> {True} x = 1) \<longrightarrow> (\<exists>x \<in> X. characteristic \<phi> {True} x = 1)"
+    using \<open>x \<in> X\<close>
+    by metis
+  ultimately have eq_1: "?ite = 1 \<longleftrightarrow> (Max {characteristic \<phi> {True} x | x. x \<in> X} = 1)"
+    by satx
+  hence "?ite = 0 \<longleftrightarrow> (Max {characteristic \<phi> {True} x | x. x \<in> X} \<noteq> 1)"
+    unfolding If_def
+    by fastforce
+  moreover have 
+    "(Max {characteristic \<phi> {True} x | x. x \<in> X} \<noteq> 1) \<longleftrightarrow> 
+      (Max {characteristic \<phi> {True} x | x. x \<in> X} = 0)"
+    using cases max_0 max_1
+    by linarith
+  ultimately have eq_0: "?ite = 0 \<longleftrightarrow> (Max {characteristic \<phi> {True} x | x. x \<in> X} = 0)"
+    by satx
   thus ?thesis
-    sorry
+    using eq_1
+    by presburger
+qed
+
+text \<open>
+Mapping functions whose codomain contains exactly 2 elements to their preimage under one of 
+these elements yields a bijection between the functions and the power set of their domain.
+\<close>
+lemma binary_map_preimg_bijection:
+  fixes
+    X :: "'x set" and Y :: "'y set" and y :: 'y
+  assumes
+    "card Y = 2" and "y \<in> Y"
+  shows
+    "bij_betw (\<lambda>f. preimg_in X f {y}) (actual_funcset X Y) (Pow X)"
+proof (unfold bij_betw_def inj_on_def, safe)
+  have "\<exists>y' \<in> Y. y' \<noteq> y"
+    using assms is_singleton_altdef[of Y]
+    unfolding is_singleton_def
+    by auto
+  then obtain y' :: 'y where "y' \<in> Y" and "y \<noteq> y'"
+    by blast
+  hence "{y', y} \<subseteq> Y"
+    using assms
+    by simp
+  moreover have "card {y', y} = 2"
+    using \<open>y \<noteq> y'\<close>
+    by simp
+  ultimately have elts: "Y = {y', y}"
+    using card_subset_eq[of Y "{y', y}"] assms
+    by fastforce
+  {
+    fix
+      f :: "'x \<Rightarrow> 'y" and
+      g :: "'x \<Rightarrow> 'y"
+    assume
+      fun_f: "f \<in> actual_funcset X Y" and 
+      fun_g: "g \<in> actual_funcset X Y" and 
+      preimg_eq: "preimg_in X f {y} = preimg_in X g {y}"
+    hence ext: "\<forall>x. x \<notin> X \<longrightarrow> f x = g x"
+      unfolding actual_funcset.simps extensional_def
+      by simp
+    have "\<exists>y' \<in> Y. y' \<noteq> y"
+      using assms is_singleton_altdef[of Y]
+      unfolding is_singleton_def
+      by auto
+    then obtain y' :: 'y where "y' \<in> Y" and "y \<noteq> y'"
+      by blast
+    hence "{y', y} \<subseteq> Y"
+      using assms
+      by simp
+    moreover have "card {y', y} = 2"
+      using \<open>y \<noteq> y'\<close>
+      by simp
+    ultimately have elts: "Y = {y', y}"
+      using card_subset_eq[of Y "{y', y}"] assms
+      by fastforce
+    hence "\<forall>x \<in> X. (f x \<noteq> y \<longrightarrow> f x = y') \<and> (g x \<noteq> y \<longrightarrow> g x = y')"
+      using fun_f fun_g
+      by auto
+    hence "\<forall>x \<in> X. (x \<notin> preimg_in X f {y} \<longrightarrow> (f x = y' \<and> g x = y'))"
+      using preimg_eq
+      unfolding preimg_in.simps
+      by blast
+    hence eq_not_y: "\<forall>x \<in> X. (x \<notin> preimg_in X f {y} \<longrightarrow> (f x = g x))"
+      by metis
+    moreover have eq_y: "\<forall>x \<in> X. (x \<in> preimg_in X f {y} \<longrightarrow> (f x = g x))"
+      using preimg_eq
+      by auto
+    ultimately show "f = g"
+      using ext
+      by blast
+  next
+    fix x :: 'x and f :: "'x \<Rightarrow> 'y"
+    assume "x \<in> preimg_in X f {y}"
+    thus "x \<in> X"
+      by simp
+  next
+    fix S :: "'x set"
+    assume "S \<subseteq> X"
+    let ?preimg_map = "\<lambda>x. (if x \<in> X then (if (x \<in> S) then y else y') else undefined)"
+    have "?preimg_map \<in> actual_funcset X Y"
+      unfolding actual_funcset.simps extensional_def Pi_def
+      using elts
+      by simp
+    moreover have "S = preimg_in X ?preimg_map {y}"
+      unfolding preimg_in.simps
+      using \<open>y \<noteq> y'\<close> \<open>S \<subseteq> X\<close>
+      by auto
+    ultimately show "S \<in> (\<lambda>f. preimg_in X f {y}) ` actual_funcset X Y"
+      by simp
+  }
+qed
+
+text \<open>
+If there is exactly one object that satisfies a predicate, 
+then the set of objects satisfying the predicate has a cardinality of 1.
+\<close>
+lemma ex1_card1:
+  fixes \<phi> :: "'x \<Rightarrow> bool"
+  assumes "\<exists>!x. \<phi> x"
+  shows "card {x. \<phi> x} = 1"
+proof -
+  from assms obtain x :: 'x where "\<phi> x" and "\<forall>y. y \<noteq> x \<longrightarrow> \<not> \<phi> y"
+    by metis
+  hence "{x. \<phi> x} = {x}"
+    by auto
+  thus ?thesis
+    by simp
 qed
 
 section \<open>Equivalence of Block Axiom in SVGs and Voting Rules\<close>
@@ -278,8 +470,20 @@ proof (unfold svg_rule_axiom_equivalence_def, safe)
     "svg_rule_equivalence (V, B, R, f) (V', \<F>)" and
     "svg_rule_power_equivalence \<delta>1 \<delta>2" and
     "block_axiom_rule {(V, B, R, f)} \<delta>1"
-  thus "block_axiom_svg_on {(V', \<F>)} \<delta>2"
-    sorry
+  show "block_axiom_svg_on {(V', \<F>)} \<delta>2"
+  proof (unfold block_axiom_svg_on.simps, safe)
+    fix
+      v :: 'a and w :: 'a and x :: 'a and V'' :: "'a set" and \<F>'' :: "'a set set"
+    assume 
+      "v \<in> voters_svg (V', \<F>)" and "w \<in> voters_svg (V', \<F>)" and "w \<noteq> v" and
+      block: "block_svg (V', \<F>) (V'', \<F>'') v w x"
+    (* TODO: Define the voting rule f' that is equivalent to (V'', \<F>'') *)
+    (* TODO: Show that f' is a block_rule of (V, B, R, f) *)
+    (* TODO: Apply rule block axiom *)
+    (* TODO: Apply equivalence to deduce goal *)
+    show "Max {\<delta>2 (V', \<F>) v, \<delta>2 (V', \<F>) w} \<le> \<delta>2 (V'', \<F>'') x"
+      sorry
+  qed
 next
   fix
     V :: "'a set" and B :: "'b set" and R :: "'c set" and f :: "('a \<Rightarrow> 'b) \<Rightarrow> 'c"
@@ -308,7 +512,8 @@ proof (unfold svg_rule_power_equivalence_def, safe)
     vot_v_rule: "v \<in> voters (V, B, R, f)" and
     vot_v_game: "v \<in> voters_svg (V', \<F>)" and
     equiv: "svg_rule_equivalence (V, B, R, f) (V', \<F>)"
-(* Helpers *)
+
+\<comment> \<open>Helpers\<close>
   hence eq_vot_set: "V = V'"
     unfolding svg_rule_equivalence_def
     by simp
@@ -421,21 +626,19 @@ proof (unfold svg_rule_power_equivalence_def, safe)
       by satx
   qed
 
-(* Rewrite power indices *)
+\<comment> \<open>Rewrite power indices\<close>
   show "banzhaf_rule_1 (V, B, R, f) v = banzhaf_svg_1 (V', \<F>) v"
   proof (cases "finite V")
     case True
     let ?f = "\<lambda>p. ereal (if {q. q \<in> actual_funcset V B \<and> p \<noteq> q \<and> differ_only_on v p q \<and>
           (preimg_in V p (preimg_in B \<sigma> {r}) \<in> \<F>) \<noteq> (preimg_in V q (preimg_in B \<sigma> {r}) \<in> \<F>)} \<noteq> {} 
-          then 1 else 0)"
-    let ?g = "\<lambda>p. ereal( if {q. q \<in> actual_funcset V B \<and> p \<noteq> q \<and> differ_only_on v p q \<and>
+          then 1 else 0)" and
+        ?g = "\<lambda>p. ereal( if {q. q \<in> actual_funcset V B \<and> p \<noteq> q \<and> differ_only_on v p q \<and>
           swing_vote_svg \<F> v (preimg_in V p (preimg_in B \<sigma> {r})) = 1} \<noteq> {} 
-          then 1 else 0)"
-    let ?\<phi> = "\<lambda>p q. differ_only_on v p q \<and> f p \<noteq> f q"
-    let ?max = 
-      "\<lambda>p. ereal (Max {characteristic (?\<phi> p) {True} q | q. q \<in> actual_funcset V B})"
-    let ?ternary =
-      "\<lambda>p. ereal (if {q \<in> actual_funcset V B. ?\<phi> p q} \<noteq> {} then 1 else 0)"
+          then 1 else 0)" and
+        ?\<phi> = "\<lambda>p q. differ_only_on v p q \<and> f p \<noteq> f q"
+    let ?max = "\<lambda>p. ereal (Max {characteristic (?\<phi> p) {True} q | q. q \<in> actual_funcset V B})" and
+        ?ternary = "\<lambda>p. ereal (if {q \<in> actual_funcset V B. ?\<phi> p q} \<noteq> {} then 1 else 0)"
     have rewrite_helper: "\<And>p. p \<in> actual_funcset V B \<Longrightarrow> ?max p = ?ternary p"
       using char_helper[of "actual_funcset V B" "?\<phi> _", OF ex_fun]
       by auto
@@ -448,7 +651,7 @@ proof (unfold svg_rule_power_equivalence_def, safe)
         sum.cong[of "actual_funcset V B" "actual_funcset V B" ?max ?ternary, OF _ rewrite_helper]
       by metis
     also have "... = (1 / 2^?n) * (\<Sum> p \<in> actual_funcset V B. 
-      ereal(if {q. q \<in> actual_funcset V B \<and> differ_only_on v p q \<and> (f p = r) \<noteq> (f q = r)} \<noteq> {} 
+      ereal (if {q. q \<in> actual_funcset V B \<and> differ_only_on v p q \<and> (f p = r) \<noteq> (f q = r)} \<noteq> {} 
         then 1 else 0))"
       using neq_rewrite
       by presburger
@@ -541,21 +744,28 @@ proof (unfold svg_rule_power_equivalence_def, safe)
         "(\<lambda>p. preimg_in V p (preimg_in B \<sigma> {r})) ` actual_funcset V B
           \<subseteq> {preimg_in V p (preimg_in B \<sigma> {r}) |p. p \<in> actual_funcset V B}"
         by auto
-      have 
+      have
+        "\<And>S. S \<in> {preimg_in V p (preimg_in B \<sigma> {r}) |p. p \<in> actual_funcset V B} 
+          \<Longrightarrow> (\<exists>! q \<in> actual_funcset V B. preimg_in V q (preimg_in B \<sigma> {r}) = S)"
+        using binary_map_preimg_bijection[of B x V, OF ballots_2] x_r part
+        unfolding bij_betw_def inj_on_def
+        by auto
+      hence 
+        "\<And>S. S \<in> {preimg_in V p (preimg_in B \<sigma> {r}) |p. p \<in> actual_funcset V B}
+          \<Longrightarrow> of_nat (card {q \<in> actual_funcset V B. preimg_in V q (preimg_in B \<sigma> {r}) = S}) = 1"
+        using ex1_card1[of "\<lambda>q. q \<in> actual_funcset V B \<and> preimg_in V q (preimg_in B \<sigma> {r}) = _"]
+        by simp
+      moreover have 
         "(\<Sum>p\<in>actual_funcset V B. 
             real_of_ereal (swing_vote_svg \<F> v (preimg_in V p (preimg_in B \<sigma> {r}))))
-          = (\<Sum>S\<in>{preimg_in V p (preimg_in B \<sigma> {r}) |p. p \<in> actual_funcset V B}.
+          = (\<Sum> S \<in> {preimg_in V p (preimg_in B \<sigma> {r}) |p. p \<in> actual_funcset V B}.
               of_nat (card {q \<in> actual_funcset V B. preimg_in V q (preimg_in B \<sigma> {r}) = S}) 
                         * real_of_ereal (swing_vote_svg \<F> v S))"
         using sum_fun_comp[
             of "actual_funcset V B" "{preimg_in V p (preimg_in B \<sigma> {r}) |p. p \<in> actual_funcset V B}" 
                 "\<lambda>p. preimg_in V p (preimg_in B \<sigma> {r})" "\<lambda>S. real_of_ereal (swing_vote_svg \<F> v S)", 
             OF fin_func fin_preimg subset]
-        by satx
-      moreover have (* Bigger one: uses that |B| = 2 so every q is determined by its S *)
-        "\<And>S. S\<in>{preimg_in V p (preimg_in B \<sigma> {r}) |p. p \<in> actual_funcset V B} 
-          \<Longrightarrow> of_nat (card {q \<in> actual_funcset V B. preimg_in V q (preimg_in B \<sigma> {r}) = S}) = 1"
-        sorry
+        by satx      
       ultimately have
         "(\<Sum>p\<in>actual_funcset V B. 
             real_of_ereal (swing_vote_svg \<F> v (preimg_in V p (preimg_in B \<sigma> {r}))))
@@ -566,7 +776,8 @@ proof (unfold svg_rule_power_equivalence_def, safe)
             "\<lambda>S. of_nat (card {q \<in> actual_funcset V B. preimg_in V q (preimg_in B \<sigma> {r}) = S}) 
                     * real_of_ereal (swing_vote_svg \<F> v S)"
             "\<lambda>S. real_of_ereal (swing_vote_svg \<F> v S)"]
-        by (metis (no_types, lifting) mult.commute mult.right_neutral)
+        using mult.commute mult.right_neutral real_ereal_1 real_of_ereal_mult
+        by (metis (no_types, lifting))      
       moreover have 
         "... = (\<Sum>S \<in> {preimg_in V p (preimg_in B \<sigma> {r}) |p. p \<in> actual_funcset V B}. 
             (swing_vote_svg \<F> v S))"
@@ -579,7 +790,7 @@ proof (unfold svg_rule_power_equivalence_def, safe)
         = (\<Sum>p \<in> actual_funcset V B. (swing_vote_svg \<F> v (preimg_in V p (preimg_in B \<sigma> {r}))))"
         using ereal_sum[of 
             "actual_funcset V B" "\<lambda>p. swing_vote_svg \<F> v (preimg_in V p (preimg_in B \<sigma> {r}))"]
-        sorry
+        sorry (* TODO show preconditions of lemma *)
       ultimately show ?thesis
         by presburger
     qed
@@ -587,7 +798,7 @@ proof (unfold svg_rule_power_equivalence_def, safe)
       using bij ballots_2 results_2 preimg_funcset[of "preimg_in B \<sigma> {r}" B V] 
         sum.cong[of "{preimg_in V p (preimg_in B \<sigma> {r}) |p. p \<in> actual_funcset V B}" "Pow V"]
       unfolding bij_betw_def inj_on_def
-      sorry
+      sorry (* TODO show preconditions of lemma *)
     also have "... = banzhaf_svg_1 (V, \<F>) v"
       by simp
     finally show ?thesis
