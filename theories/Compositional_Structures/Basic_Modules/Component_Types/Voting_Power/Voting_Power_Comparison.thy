@@ -7,33 +7,71 @@ begin
 
 section \<open>Locale Draft\<close>
 
-(*
-locale Voting_Model_Comparison =
+(* 
+Voting models as types of a typeclass: 
+  class voting_model where
+    voter_set :: "\<alpha> \<Rightarrow> 'v set" 
+Problem: 'v is an additional type variable.
+*)
+
+(* Same thing as a locale: *)
+locale voting_model = 
   fixes
-    model_similarity :: "'x \<Rightarrow> 'y \<Rightarrow> bool"
+    model_type :: "'\<alpha> itself" and 
+      (* A specific voting system is represented by an object of type '\<alpha>  *)
+    voter_set :: "'\<alpha> \<Rightarrow> 'v set"   
+      (* Every voting model can be associated with a set of eligible/participating voters *)
 
-locale Voting_Power_Comparison =
-  fixes 
-    delta1 :: "('x, 'v) Voting_Power" and
-    delta2 :: "('y, 'v) Voting_Power" and
-    similarity :: "('x, 'v) Voting_Power \<Rightarrow> ('y, 'v) Voting_Power \<Rightarrow> bool"
+(* The voting rule model represents voting systems via objects of type Voting_Rule *)
+interpretation voting_rules: voting_model "TYPE(('v, 'b, 'r) Voting_Rule)" voters
+proof - qed
+
+(* The simple voting game model represents voting systems via objects of type Simple_Voting_Game *)
+interpretation simple_voting_games: voting_model "TYPE('v Simple_Voting_Game)" fst
+proof - qed
+
+(* 
+To compare two voting models, we fix them and a notion of two objects being equivalent, 
+that is, representing the same voting system. We require that any two objects that represent
+the same voting system are associated with the same set of eligible voters.  
+*)
+locale voting_model_comparison = 
+  m1: voting_model "TYPE('\<alpha>)" voters1 + m2: voting_model "TYPE('\<beta>)" voters2 for voters1 voters2 +
+  fixes
+    model_equivalence :: "'\<alpha> \<Rightarrow> '\<beta> \<Rightarrow> bool"
   assumes
-    "similarity delta1 delta2"
+    equiv_imp_equal_voters: "\<forall>a b. model_equivalence a b \<longrightarrow> voters1 a = voters2 b"
 
-definition (in Voting_Model_Comparison) numerical_similarity :: 
-  "('x, 'v) Voting_Power \<Rightarrow> ('y, 'v) Voting_Power \<Rightarrow> bool" where
-  "numerical_similarity delta1 delta2 = (\<forall>m1 m2. model_similarity m1 m2 \<longrightarrow> (\<forall>v. delta1 m1 v = delta2 m2 v))"
+(* 
+A voting power index has as domain all pairs of voting model objects 
+and (not necessarily) eligible voters.
 
-locale Numerical_Voting_Power_Comparison = 
-    model_comp: Voting_Model_Comparison model_similarity + 
-    power_comp: Voting_Power_Comparison delta1 delta2 model_comp.numerical_similarity 
-    for model1 and model2 and model_similarity and delta1 and delta2
+We require that a voter who is not eligible in a given voting model object has power equal to 0.
+*)
+locale voting_power = voting_model "TYPE('\<alpha>)" voters for voters :: "'\<alpha> \<Rightarrow> 'v set" +
+  fixes
+    \<delta> :: "('\<alpha>, 'v) Voting_Power"
+  assumes
+    no_voter_no_power: "\<forall>a v. v \<notin> voters a \<longrightarrow> \<delta> a v = 0"
+
+(* 
+To compare two voting power indices, we fix them and a notion of voting model equivalence.
+*)
+locale voting_power_comparison = pow1: voting_power voters1 \<delta>1 + pow2: voting_power voters2 \<delta>2 
+  + voting_model_comparison voters1 voters2 model_equivalence
+  for voters1 \<delta>1 voters2 \<delta>2 and model_equivalence :: "'\<alpha> \<Rightarrow> '\<beta> \<Rightarrow> bool"
+    (* TODO assumptions? *)
 begin
 
-thm power_comp.Voting_Power_Comparison_axioms
-
-end 
+(* 
+The power indices at hand are equivalent iff they yield the same power for the same voter
+in equivalent voting model objects. This represents the idea that a voter's actual power should
+not depend on the voting model that is chosen to represent a voting system.
 *)
+definition power_equivalence :: bool where
+  "power_equivalence = (\<forall>a b v. model_equivalence a b \<and> v \<in> voters1 a \<longrightarrow> \<delta>1 a v = \<delta>2 b v)"
+  
+end
 
 section \<open>SVG-Voting-Rule-Definitions\<close>
 
@@ -58,6 +96,24 @@ definition svg_rule_equivalence ::
       (\<forall>p. rule \<R> p = r \<longleftrightarrow> preimg_in (voters \<R>) p (preimg_in (ballots \<R>) \<sigma> {r}) \<in> (coalitions \<G>))
     )
   )"
+
+locale rule_simple_voting_game_comparison =
+  comp: voting_model_comparison voters fst svg_rule_equivalence
+begin
+
+(* Transform voting rules to an equivalent SVG *)
+fun transform_rule :: "('a, 'b, 'c) Voting_Rule \<Rightarrow> 'a Simple_Voting_Game" 
+  where "transform_rule (V, B, R, f) = (V, {})" (* TODO *)
+
+(* Why undefined constant?:
+lemma "comp.model_equivalence rule (transform_rule rule)" *)
+
+end
+
+(* Show that the given equivalence function for SVGs and voting rules is a valid comparison map *)
+sublocale 
+  rule_simple_voting_game_comparison \<subseteq> voting_model_comparison voters fst svg_rule_equivalence
+  by (unfold_locales, unfold svg_rule_equivalence_def, simp)
 
 text \<open>
 Ad hoc definition: A voting power index formulated on the domain of voting rules is equivalent
@@ -467,22 +523,78 @@ proof (unfold svg_rule_axiom_equivalence_def, safe)
     and \<delta>1 :: "(('a, 'b, 'c) Voting_Rule, 'a) Voting_Power" 
     and \<delta>2 :: "('a Simple_Voting_Game, 'a) Voting_Power"
   assume
-    "svg_rule_equivalence (V, B, R, f) (V', \<F>)" and
-    "svg_rule_power_equivalence \<delta>1 \<delta>2" and
-    "block_axiom_rule {(V, B, R, f)} \<delta>1"
+    equiv_model: "svg_rule_equivalence (V, B, R, f) (V', \<F>)" and
+    equiv_power: "svg_rule_power_equivalence \<delta>1 \<delta>2" and
+    sat_on_rules: "block_axiom_rule {(V, B, R, f)} \<delta>1"
   show "block_axiom_svg_on {(V', \<F>)} \<delta>2"
   proof (unfold block_axiom_svg_on.simps, safe)
     fix
       v :: 'a and w :: 'a and x :: 'a and V'' :: "'a set" and \<F>'' :: "'a set set"
     assume 
-      "v \<in> voters_svg (V', \<F>)" and "w \<in> voters_svg (V', \<F>)" and "w \<noteq> v" and
+      vot_v: "v \<in> voters_svg (V', \<F>)" and vot_w: "w \<in> voters_svg (V', \<F>)" and "w \<noteq> v" and
       block: "block_svg (V', \<F>) (V'', \<F>'') v w x"
-    (* TODO: Define the voting rule f' that is equivalent to (V'', \<F>'') *)
-    (* TODO: Show that f' is a block_rule of (V, B, R, f) *)
-    (* TODO: Apply rule block axiom *)
-    (* TODO: Apply equivalence to deduce goal *)
-    show "Max {\<delta>2 (V', \<F>) v, \<delta>2 (V', \<F>) w} \<le> \<delta>2 (V'', \<F>'') x"
-      sorry
+    have "V = V'"
+      using equiv_model
+      unfolding svg_rule_equivalence_def
+      by simp
+    hence "x \<notin> V"
+      using block
+      by simp
+    have "x \<in> V''"
+      using block
+      by simp
+
+    let ?f_block = "(V - {v,w} \<union> {x}, B, R, f)"
+
+    have is_block: "block_rule (V, B, R, f) ?f_block v w x"
+      using \<open>x \<notin> V\<close>
+      by simp
+    hence geq_on_rules: "\<delta>1 ?f_block x \<ge> Max {\<delta>1 (V, B, R, f) v, \<delta>1 (V, B, R, f) w}"
+      using sat_on_rules vot_v vot_w \<open>V = V'\<close>
+      by simp
+
+    have "\<exists>\<sigma>::'b \<Rightarrow> 'c. \<exists>r \<in> R. 
+      bij_betw \<sigma> B R \<and> (\<forall>p. f p = r \<longleftrightarrow> preimg_in V p (preimg_in B \<sigma> {r}) \<in> \<F>)"
+      using equiv_model
+      unfolding svg_rule_equivalence_def
+      by auto
+    then obtain \<sigma> :: "'b \<Rightarrow> 'c" and r :: 'c where 
+      res: "r \<in> R" and
+      bij: "bij_betw \<sigma> B R" and 
+      decision_corresp: "\<forall>p. f p = r \<longleftrightarrow> preimg_in V p (preimg_in B \<sigma> {r}) \<in> \<F>"
+      by metis
+    moreover have
+      "\<forall>p. (preimg_in V p (preimg_in B \<sigma> {r}) \<in> \<F>) \<longleftrightarrow> (preimg_in V'' p (preimg_in B \<sigma> {r}) \<in> \<F>'')"
+      sorry (* TODO does this even hold? *)
+    moreover have "voters ?f_block = fst (V'', \<F>'')"
+      using block \<open>V = V'\<close>
+      by simp
+    moreover have "card (ballots ?f_block) = 2"
+      using equiv_model
+      unfolding svg_rule_equivalence_def
+      by simp
+    moreover have "card (results ?f_block) = 2"
+      using equiv_model
+      unfolding svg_rule_equivalence_def
+      by simp
+    ultimately have equiv_model_block:"svg_rule_equivalence ?f_block (V'', \<F>'')"
+      unfolding svg_rule_equivalence_def
+      by force
+    hence "\<delta>2 (V'', \<F>'') x = \<delta>1 ?f_block x"
+      using equiv_power \<open>x \<in> V''\<close>
+      unfolding svg_rule_power_equivalence_def
+      by simp
+    moreover have "\<delta>1 (V, B, R, f) v = \<delta>2 (V', \<F>) v"
+      using equiv_model equiv_power vot_v \<open>V = V'\<close>
+      unfolding svg_rule_power_equivalence_def
+      by simp
+    moreover have "\<delta>1 (V, B, R, f) w = \<delta>2 (V', \<F>) w"
+      using equiv_model equiv_power vot_w \<open>V = V'\<close>
+      unfolding svg_rule_power_equivalence_def
+      by simp
+    ultimately show "Max {\<delta>2 (V', \<F>) v, \<delta>2 (V', \<F>) w} \<le> \<delta>2 (V'', \<F>'') x"
+      using geq_on_rules
+      by metis
   qed
 next
   fix
@@ -512,8 +624,8 @@ proof (unfold svg_rule_power_equivalence_def, safe)
     vot_v_rule: "v \<in> voters (V, B, R, f)" and
     vot_v_game: "v \<in> voters_svg (V', \<F>)" and
     equiv: "svg_rule_equivalence (V, B, R, f) (V', \<F>)"
-
-\<comment> \<open>Helpers\<close>
+  
+\<comment> \<open>Basic Helpers\<close>
   hence eq_vot_set: "V = V'"
     unfolding svg_rule_equivalence_def
     by simp
@@ -531,12 +643,24 @@ proof (unfold svg_rule_power_equivalence_def, safe)
   have ex_fun: "actual_funcset V B \<noteq> {}"
     using ballots_2 exists_functions_1[of B]
     by fastforce
-  obtain \<sigma> :: "'b \<Rightarrow> 'c" and r :: 'c where
-    "r \<in> R" and bij: "bij_betw \<sigma> B R" and 
-    decision_corresp: "\<forall>p. f p = r \<longleftrightarrow> preimg_in V p (preimg_in B \<sigma> {r}) \<in> \<F>"  
+
+\<comment> \<open>Frequent Functions\<close>
+  let ?profile = "\<lambda>f. f \<in> actual_funcset V B" and
+      ?profiles = "actual_funcset V B" and
+      ?diff_exactly_on = "\<lambda>v p q. p \<noteq> q \<and> differ_only_on v p q" and
+      ?ballots_for = "\<lambda>r \<sigma>. preimg_in B \<sigma> {r}" and
+      ?voters_choosing = "\<lambda>b p. preimg_in V p b" and
+      ?results_differ = "\<lambda>p q. f p \<noteq> f q"
+  let ?voters_for = "\<lambda>r p \<sigma>. ?voters_choosing (?ballots_for r \<sigma>) p"
+
+\<comment> \<open>Ballot-Result Bijection\<close>
+  obtain \<sigma> :: "'b \<Rightarrow> 'c" and r :: 'c where 
+    "r \<in> R" and bij: "bij_betw \<sigma> B R" and decision_corresp: "\<forall>p. f p = r \<longleftrightarrow> ?voters_for r p \<sigma> \<in> \<F>"  
     using equiv  
     unfolding svg_rule_equivalence_def fst_def snd_def
     by auto
+
+\<comment> \<open>Two Possible Results\<close>
   hence "card (R - {r}) = 1"
     using results_2
     by simp
@@ -556,10 +680,10 @@ proof (unfold svg_rule_power_equivalence_def, safe)
   have "s \<noteq> r"
     using res_set results_2
     by auto
-  have "preimg_in B \<sigma> {r} = {the_inv_into B \<sigma> r}"
+  have "?ballots_for r \<sigma> = {the_inv_into B \<sigma> r}"
     using bij \<open>r \<in> R\<close> preimg_the_inv[of r R \<sigma> B]
     by satx
-  moreover have "preimg_in B \<sigma> {s} = {the_inv_into B \<sigma> s}"
+  moreover have "?ballots_for s \<sigma> = {the_inv_into B \<sigma> s}"
     using bij \<open>s \<in> R\<close> preimg_the_inv[of s R \<sigma> B]
     by satx
   moreover have "the_inv_into B \<sigma> r \<noteq> the_inv_into B \<sigma> s"
@@ -571,21 +695,22 @@ proof (unfold svg_rule_power_equivalence_def, safe)
   moreover have "\<exists>y. y = the_inv_into B \<sigma> s"
     using bij
     by metis
+
+\<comment> \<open>Two Possible Ballots\<close>
   ultimately obtain x :: 'b and y :: 'b where 
-    "x \<noteq> y" and x_r: "preimg_in B \<sigma> {r} = {x}" and y_s: "preimg_in B \<sigma> {s} = {y}"
+    "x \<noteq> y" and x_r: "?ballots_for r \<sigma> = {x}" and y_s: "?ballots_for s \<sigma> = {y}"
     by metis
   hence part: "B = {x, y}"
     using bij \<open>R = {s, r}\<close>
     unfolding bij_betw_def
     by auto
-  hence part': "\<forall>g \<in> actual_funcset V B. 
-    preimg_in V g {x} \<union> preimg_in V g {y} = V"
+  hence part': "\<forall>g. ?profile g \<longrightarrow> ?voters_choosing {x} g \<union> ?voters_choosing {y} g = V"
     unfolding actual_funcset.simps Pi_def
     by auto
-  have swing_rewrite: "\<forall>p q. 
-    (p \<in> actual_funcset V B \<and> q \<in> actual_funcset V B \<and> p \<noteq> q \<and> differ_only_on v p q) \<longrightarrow>
-    ((preimg_in V p (preimg_in B \<sigma> {r}) \<in> \<F>) \<noteq> (preimg_in V q (preimg_in B \<sigma> {r}) \<in> \<F>)
-    \<longleftrightarrow> (swing_vote_svg \<F> v (preimg_in V p (preimg_in B \<sigma> {r})) = 1))" 
+  have swing_rewrite: 
+    "\<forall>p q. (?profile p \<and> ?profile q \<and> ?diff_exactly_on v p q) \<longrightarrow>
+      (((?voters_for r p \<sigma> \<in> \<F>) \<noteq> (?voters_for r q \<sigma> \<in> \<F>)) \<longleftrightarrow> 
+        (swing_vote_svg \<F> v (?voters_for r p \<sigma>) = 1))" 
   proof (clarify)
     fix p :: "'a \<Rightarrow> 'b" and q :: "'a \<Rightarrow> 'b"
     assume "p \<noteq> q" and eq: "differ_only_on v p q" and 
@@ -626,44 +751,59 @@ proof (unfold svg_rule_power_equivalence_def, safe)
       by satx
   qed
 
-\<comment> \<open>Rewrite power indices\<close>
+\<comment> \<open>Rewrite Banzhaf Indices\<close>
   show "banzhaf_rule_1 (V, B, R, f) v = banzhaf_svg_1 (V', \<F>) v"
   proof (cases "finite V")
+    case False
+    hence "banzhaf_rule_1 (V, B, R, f) v = 0"
+      by simp
+    moreover from False have "banzhaf_svg_1 (V', \<F>) v = 0"
+      using eq_vot_set
+      by simp
+    ultimately show ?thesis
+      by simp
+  next
     case True
-    let ?f = "\<lambda>p. ereal (if {q. q \<in> actual_funcset V B \<and> p \<noteq> q \<and> differ_only_on v p q \<and>
-          (preimg_in V p (preimg_in B \<sigma> {r}) \<in> \<F>) \<noteq> (preimg_in V q (preimg_in B \<sigma> {r}) \<in> \<F>)} \<noteq> {} 
+    let ?f = 
+        "\<lambda>p. ereal 
+          (if {q. ?profile q \<and> ?diff_exactly_on v p q \<and>
+            (?voters_for r p \<sigma> \<in> \<F>) \<noteq> (?voters_for r q \<sigma> \<in> \<F>)} \<noteq> {} 
           then 1 else 0)" and
-        ?g = "\<lambda>p. ereal( if {q. q \<in> actual_funcset V B \<and> p \<noteq> q \<and> differ_only_on v p q \<and>
-          swing_vote_svg \<F> v (preimg_in V p (preimg_in B \<sigma> {r})) = 1} \<noteq> {} 
-          then 1 else 0)" and
-        ?\<phi> = "\<lambda>p q. differ_only_on v p q \<and> f p \<noteq> f q"
-    let ?max = "\<lambda>p. ereal (Max {characteristic (?\<phi> p) {True} q | q. q \<in> actual_funcset V B})" and
-        ?ternary = "\<lambda>p. ereal (if {q \<in> actual_funcset V B. ?\<phi> p q} \<noteq> {} then 1 else 0)"
-    have rewrite_helper: "\<And>p. p \<in> actual_funcset V B \<Longrightarrow> ?max p = ?ternary p"
-      using char_helper[of "actual_funcset V B" "?\<phi> _", OF ex_fun]
+        ?g = 
+          "\<lambda>p. ereal 
+            (if {q. ?profile q \<and> ?diff_exactly_on v p q \<and>
+              swing_vote_svg \<F> v (?voters_for r p \<sigma>) = 1} \<noteq> {} 
+            then 1 else 0)" and
+        ?swing = "\<lambda>p q. differ_only_on v p q \<and> ?results_differ p q"
+    let ?max = 
+          "\<lambda>p. ereal (Max {characteristic (?swing p) {True} q | q. ?profile q})" and
+        ?ternary = 
+          "\<lambda>p. ereal (if {q. ?profile q \<and> ?swing p q} \<noteq> {} then 1 else 0)"
+    have rewrite_helper: "\<And>p. ?profile p \<Longrightarrow> ?max p = ?ternary p"
+      using char_helper[of ?profiles "?swing _", OF ex_fun]
       by auto
     from True have rewrite_rule: 
-      "banzhaf_rule_1 (V, B, R, f) v = (1 / 2^?n) * (\<Sum> p \<in> actual_funcset V B. ?max p)"
+      "banzhaf_rule_1 (V, B, R, f) v = (1 / 2^?n) * (\<Sum> p \<in> ?profiles. ?max p)"
       using ballots_2
       by simp
-    also have "... = (1 / 2^?n) * (\<Sum> p \<in> actual_funcset V B. ?ternary p)"
+    also have "... = (1 / 2^?n) * (\<Sum> p \<in> ?profiles. ?ternary p)"
       using
-        sum.cong[of "actual_funcset V B" "actual_funcset V B" ?max ?ternary, OF _ rewrite_helper]
+        sum.cong[of ?profiles ?profiles ?max ?ternary, OF _ rewrite_helper]
       by metis
-    also have "... = (1 / 2^?n) * (\<Sum> p \<in> actual_funcset V B. 
-      ereal (if {q. q \<in> actual_funcset V B \<and> differ_only_on v p q \<and> (f p = r) \<noteq> (f q = r)} \<noteq> {} 
-        then 1 else 0))"
+    also have "... = 
+      (1 / 2^?n) * (\<Sum> p \<in> ?profiles. ereal 
+        (if {q. ?profile q \<and> differ_only_on v p q \<and> (f p = r) \<noteq> (f q = r)} \<noteq> {} then 1 else 0))"
       using neq_rewrite
       by presburger
-    also have "... = (1 / 2^?n) * (\<Sum> p \<in> actual_funcset V B. 
-      ereal( if {q. q \<in> actual_funcset V B \<and> differ_only_on v p q \<and>
-        (preimg_in V p (preimg_in B \<sigma> {r}) \<in> \<F>) \<noteq> (preimg_in V q (preimg_in B \<sigma> {r}) \<in> \<F>)} \<noteq> {} 
+    also have "... = (1 / 2^?n) * (\<Sum> p \<in> ?profiles. ereal
+        (if {q. q \<in> ?profiles \<and> differ_only_on v p q \<and>
+          (?voters_for r p \<sigma> \<in> \<F>) \<noteq> (?voters_for r q \<sigma> \<in> \<F>)} \<noteq> {} 
         then 1 else 0))"
       using decision_corresp
       by simp
-    also have "... = (1 / 2^?n) * (\<Sum> p \<in> actual_funcset V B. 
-      ereal (if {q. q \<in> actual_funcset V B \<and> p \<noteq> q \<and> differ_only_on v p q \<and>
-        (preimg_in V p (preimg_in B \<sigma> {r}) \<in> \<F>) \<noteq> (preimg_in V q (preimg_in B \<sigma> {r}) \<in> \<F>)} \<noteq> {} 
+    also have "... = (1 / 2^?n) * (\<Sum> p \<in> ?profiles. ereal 
+        (if {q. ?profile q \<and> ?diff_exactly_on v p q \<and>
+          (?voters_for r p \<sigma> \<in> \<F>) \<noteq> (?voters_for r q \<sigma> \<in> \<F>)} \<noteq> {} 
         then 1 else 0))"
     proof -
       let ?f' = "\<lambda>p. ereal (if {q. q \<in> actual_funcset V B \<and> differ_only_on v p q \<and>
@@ -681,10 +821,10 @@ proof (unfold svg_rule_power_equivalence_def, safe)
         using sum.cong[of "actual_funcset V B" "actual_funcset V B" ?f' ?f, OF _ coinc]
         by metis
     qed
-    also have "... = (1 / 2^?n) * (\<Sum> p \<in> actual_funcset V B. 
-      ereal (if {q. q \<in> actual_funcset V B \<and> p \<noteq> q \<and> differ_only_on v p q \<and>
-        swing_vote_svg \<F> v (preimg_in V p (preimg_in B \<sigma> {r})) = 1} \<noteq> {} 
-        then 1 else 0))"
+    also have "... = (1 / 2^?n) * (\<Sum> p \<in> ?profiles. ereal 
+      (if {q. ?profile q \<and> ?diff_exactly_on v p q \<and>
+        swing_vote_svg \<F> v (?voters_for r p \<sigma>) = 1} \<noteq> {} 
+      then 1 else 0))"
     proof -
       have "\<And>p. p \<in> actual_funcset V B \<Longrightarrow> 
         (\<exists>q. (q \<in> actual_funcset V B \<and> p \<noteq> q \<and> differ_only_on v p q \<and>
@@ -706,7 +846,7 @@ proof (unfold svg_rule_power_equivalence_def, safe)
         by metis
     qed 
     also have "... = (1 / 2^?n) * 
-      (\<Sum> p \<in> actual_funcset V B. swing_vote_svg \<F> v (preimg_in V p (preimg_in B \<sigma> {r})))"
+      (\<Sum> p \<in> ?profiles. swing_vote_svg \<F> v (?voters_for r p \<sigma>))"
     proof -
       let ?h = "\<lambda>p. swing_vote_svg \<F> v (preimg_in V p (preimg_in B \<sigma> {r}))"
       have 
@@ -726,23 +866,22 @@ proof (unfold svg_rule_power_equivalence_def, safe)
         using sum.cong[of "actual_funcset V B" "actual_funcset V B" ?g ?h]
         by presburger
     qed
-    also have "... = (1 / 2^?n) * 
-      (\<Sum> S \<in> {preimg_in V p (preimg_in B \<sigma> {r}) |p. p \<in> actual_funcset V B}. swing_vote_svg \<F> v S)"
+    also have 
+      "... = (1 / 2^?n) * (\<Sum> S \<in> {?voters_for r p \<sigma> |p. ?profile p}. swing_vote_svg \<F> v S)"
     proof -
-      have fin_func: "finite (actual_funcset V B)"
+      have fin_func: "finite ?profiles"
         using True ballots_2 fin_funcset[of V B]
         by fastforce
-      have "{preimg_in V p (preimg_in B \<sigma> {r}) |p. p \<in> actual_funcset V B} \<subseteq> Pow V"
+      have "{?voters_for r p \<sigma> |p. ?profile p} \<subseteq> Pow V"
         by auto
       moreover have "finite (Pow V)"
         using True
         by simp
       ultimately have fin_preimg: 
-        "finite {preimg_in V p (preimg_in B \<sigma> {r}) |p. p \<in> actual_funcset V B}"
+        "finite {?voters_for r p \<sigma> |p. ?profile p}"
         by (rule finite_subset)
       have subset:
-        "(\<lambda>p. preimg_in V p (preimg_in B \<sigma> {r})) ` actual_funcset V B
-          \<subseteq> {preimg_in V p (preimg_in B \<sigma> {r}) |p. p \<in> actual_funcset V B}"
+        "(\<lambda>p. ?voters_for r p \<sigma>) ` ?profiles \<subseteq> {?voters_for r p \<sigma> |p. ?profile p}"
         by auto
       have
         "\<And>S. S \<in> {preimg_in V p (preimg_in B \<sigma> {r}) |p. p \<in> actual_funcset V B} 
@@ -795,23 +934,14 @@ proof (unfold svg_rule_power_equivalence_def, safe)
         by presburger
     qed
     also have "... = (1 / 2^?n) * (\<Sum> S \<in> Pow V. swing_vote_svg \<F> v S)"
-      using bij ballots_2 results_2 preimg_funcset[of "preimg_in B \<sigma> {r}" B V] 
-        sum.cong[of "{preimg_in V p (preimg_in B \<sigma> {r}) |p. p \<in> actual_funcset V B}" "Pow V"]
+      using bij ballots_2 results_2 preimg_funcset[of "?ballots_for r \<sigma>" B V] 
+        sum.cong[of "{?voters_for r p \<sigma> |p. ?profile p}" "Pow V"]
       unfolding bij_betw_def inj_on_def
       sorry (* TODO show preconditions of lemma *)
     also have "... = banzhaf_svg_1 (V, \<F>) v"
       by simp
     finally show ?thesis
       using eq_vot_set
-      by simp
-  next
-    case False
-    hence "banzhaf_rule_1 (V, B, R, f) v = 0"
-      by simp
-    moreover from False have "banzhaf_svg_1 (V', \<F>) v = 0"
-      using eq_vot_set
-      by simp
-    ultimately show ?thesis
       by simp
   qed
 qed
@@ -827,7 +957,7 @@ theorem banzhaf_1_satisfies_block_axiom:
 proof -
   have "\<forall>\<G> \<in> monotone_SVGs. block_axiom_svg_on {\<G>} banzhaf_svg_1"
     using banzhaf_1_satisfies_block_axiom
-    by simp
+    by auto
   hence "\<forall>\<R> \<in> monotone_binary_voting_rules. block_axiom_rule {\<R>} banzhaf_rule_1"
     using block_equivalence monotone_binary_voting_rules_def banzhaf_equivalence
     unfolding svg_rule_axiom_equivalence_def

@@ -116,8 +116,10 @@ lemma banzhaf_1_satisfies_symmetry_axiom:
 lemma banzhaf_1_satisfies_block_axiom: 
   "block_axiom_svg_on monotone_SVGs banzhaf_svg_1"
 proof (simp only: block_axiom_svg_on.simps fst_def snd_def, safe, goal_cases)
-  case (1 V \<F> v w)
-  then show ?case
+  case (1 V \<F> v w x V' \<F>')
+  hence merged_vot_set: "V' = V - {w, v} \<union> {x}"
+    by auto
+  from 1 show ?case
   proof (cases "finite V")
     case True
     let ?\<F> = "{S - {w} |S. (v \<in> S \<longleftrightarrow> w \<in> S) \<and> S \<in> \<F>}"
@@ -138,18 +140,20 @@ proof (simp only: block_axiom_svg_on.simps fst_def snd_def, safe, goal_cases)
       sorry
   next
     case False
-    hence "infinite (V - {w})"
+    hence "infinite (V - {w, v})"
       by simp
-    hence "banzhaf_svg_1 (block_svg (V, \<F>) v w) v = 0"
+    hence "infinite V'"
+      using merged_vot_set
       by simp
-    moreover have "Max{banzhaf_svg_1 (V, \<F>) v, banzhaf_svg_1 (V, \<F>) w} = 0"
+    hence "banzhaf_svg_1 (V', \<F>') x = 0"
+      by simp
+    moreover have "Max {banzhaf_svg_1 (V, \<F>) v, banzhaf_svg_1 (V, \<F>) w} = 0"
       using False
       by simp
     ultimately show ?thesis  
       by order
   qed
 qed
-
 
 lemma banzhaf_1_is_prob_svg:
   fixes
