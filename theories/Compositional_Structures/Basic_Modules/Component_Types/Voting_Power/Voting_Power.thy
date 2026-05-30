@@ -8,6 +8,7 @@ begin
 section \<open>Voting Power Definition\<close>
 
 type_synonym ('x, 'v) Voting_Power = "'x \<Rightarrow> 'v \<Rightarrow> ereal"
+type_synonym ('x, 'v) Voting_Power_Axiom = "'x set \<Rightarrow> ('x, 'v) Voting_Power \<Rightarrow> bool"
 
 section \<open>Voting Power Hierarchy\<close>
 
@@ -17,19 +18,17 @@ section \<open>Voting Power Hierarchy\<close>
   
   We require that a voter who is not eligible in a given voting model object has power equal to 0.
 \<close>
-locale voting_power = voting_model domain voters ballots results aggregation 
-  for domain :: "'\<alpha> set" and voters :: "'\<alpha> \<Rightarrow> 'v set" and ballots :: "'\<alpha> \<Rightarrow> 'b set" and
-    results :: "'\<alpha> \<Rightarrow> 'r set" and aggregation :: "'\<alpha> \<Rightarrow> ('v, 'b, 'r) Aggregation_Method" +
+locale voting_power = voting_model domain semantics
+  for domain :: "'\<alpha> set" and semantics :: "('\<alpha>, 'v, 'b, 'r) Voting_Rule_Transformation" +
   fixes
     \<delta> :: "('\<alpha>, 'v) Voting_Power"
   assumes
-    no_voter_no_power: "\<forall>a \<in> domain. \<forall>v. v \<notin> voters a \<longrightarrow> \<delta> a v = 0"
+    no_voter_no_power: "\<forall>a \<in> domain. \<forall>v. v \<notin> rule_voters (semantics a) \<longrightarrow> \<delta> a v = 0"
 
 section \<open>Voting Power Indices Based on Properties\<close>
 
-locale block_axiom = voting_power domain voters ballots results aggregation \<delta>
-  for domain :: "'\<alpha> set" and voters :: "'\<alpha> \<Rightarrow> 'v set" and ballots :: "'\<alpha> \<Rightarrow> 'b set" and
-    results :: "'\<alpha> \<Rightarrow> 'r set" and aggregation :: "'\<alpha> \<Rightarrow> ('v, 'b, 'r) Aggregation_Method" and \<delta> +
+locale block_axiom = voting_power domain semantics \<delta>
+  for domain :: "'\<alpha> set" and semantics :: "('\<alpha>, 'v, 'b, 'r) Voting_Rule_Transformation" and \<delta> +
   fixes (* Fix additional semantic notions needed to define the block axiom property here *) 
     block_model :: "'\<alpha> \<Rightarrow> '\<alpha> \<Rightarrow> 'v \<Rightarrow> 'v \<Rightarrow> 'v \<Rightarrow> bool"
   assumes 
@@ -38,30 +37,33 @@ locale block_axiom = voting_power domain voters ballots results aggregation \<de
     block_axiom: "\<forall>m1 \<in> domain. \<forall>m2. \<forall>v \<in> voters m1. \<forall>w \<in> voters m1. \<forall>x. 
       block_model m1 m2 v w x \<longrightarrow> \<delta> m2 x \<ge> Max{\<delta> m1 v, \<delta> m2 w}"
 
-locale null_player_axiom = voting_power domain voters ballots results aggregation \<delta>
-  for domain :: "'\<alpha> set" and voters :: "'\<alpha> \<Rightarrow> 'v set" and ballots :: "'\<alpha> \<Rightarrow> 'b set" and
-    results :: "'\<alpha> \<Rightarrow> 'r set" and aggregation :: "'\<alpha> \<Rightarrow> ('v, 'b, 'r) Aggregation_Method" and \<delta> +
+locale null_player_axiom = voting_power domain semantics \<delta>
+  for domain :: "'\<alpha> set" and semantics :: "('\<alpha>, 'v, 'b, 'r) Voting_Rule_Transformation" and \<delta> +
   assumes
     null_player_axiom: 
       "\<forall>m \<in> domain. \<forall>v \<in> voters m. (has_swing m v = (\<lambda>p. False)) \<longrightarrow> \<delta> m v = 0"
 
-locale symmetry_axiom = voting_power domain voters ballots results aggregation \<delta>
-  for domain :: "'\<alpha> set" and voters :: "'\<alpha> \<Rightarrow> 'v set" and ballots :: "'\<alpha> \<Rightarrow> 'b set" and
-    results :: "'\<alpha> \<Rightarrow> 'r set" and aggregation :: "'\<alpha> \<Rightarrow> ('v, 'b, 'r) Aggregation_Method" and \<delta> +
+fun (in voting_power) isomorphism_sanity :: "(('v \<Rightarrow> 'v) \<Rightarrow> '\<alpha> \<Rightarrow> '\<alpha>) \<Rightarrow> bool" where
+  "isomorphism_sanity \<pi> = (\<forall>m1 \<in> domain. \<forall>m2 \<in> domain. \<forall>\<sigma>. 
+    bij_betw \<sigma> (voters m1) (voters m2) \<longrightarrow> m2 = \<pi> \<sigma> m1 \<longrightarrow>
+      (ballots m1 = ballots m2 \<and> results m1 = results m2 \<and>
+      (\<forall>p \<in> profiles m2. aggregation m1 (p \<circ> \<sigma>) = aggregation m2 p)))"
+
+fun (in voting_power) symmetry :: "(('v \<Rightarrow> 'v) \<Rightarrow> '\<alpha> \<Rightarrow> '\<alpha>) \<Rightarrow> bool" where
+  "symmetry \<pi> = (\<forall>m1 \<in> domain. \<forall>m2 \<in> domain. \<forall>\<sigma>. 
+    bij_betw \<sigma> (voters m1) (voters m2) \<longrightarrow> m2 = \<pi> \<sigma> m1 \<longrightarrow> (\<forall>v \<in> voters m1. \<delta> m1 v = \<delta> m2 (\<sigma> v)))"
+
+locale symmetry_axiom = voting_power domain semantics \<delta>
+  for domain :: "'\<alpha> set" and semantics :: "('\<alpha>, 'v, 'b, 'r) Voting_Rule_Transformation" and \<delta> +
   fixes
     isomorphism :: "('v \<Rightarrow> 'v) \<Rightarrow> '\<alpha> \<Rightarrow> '\<alpha>" 
   assumes
     (* Potential additional symmetry requirements: same voter order, same datetime, ... *)
-    isomorphism_sane: "\<forall>m1 \<in> domain. \<forall>m2 \<in> domain. \<forall>\<sigma>. 
-      bij_betw \<sigma> (voters m1) (voters m2) \<longrightarrow> m2 = isomorphism \<sigma> m1 \<longrightarrow>
-      (\<forall>p \<in> profiles m2. aggregation m1 (p \<circ> \<sigma>) = aggregation m2 p)" and 
-    symmetry_axiom: "\<forall>m1 \<in> domain. \<forall>m2 \<in> domain. \<forall>\<sigma>. 
-      bij_betw \<sigma> (voters m1) (voters m2) \<longrightarrow> m2 = isomorphism \<sigma> m1 \<longrightarrow>
-      (\<forall>v \<in> voters m1. \<delta> m1 v = \<delta> m2 (\<sigma> v))"
+    isomorphism_sane: "isomorphism_sanity isomorphism" and 
+    symmetry_axiom: "symmetry isomorphism"
 
-locale transfer_axiom = voting_power domain voters ballots results aggregation \<delta>
-  for domain :: "'\<alpha> set" and voters :: "'\<alpha> \<Rightarrow> 'v set" and ballots :: "'\<alpha> \<Rightarrow> 'b set" and
-    results :: "'\<alpha> \<Rightarrow> 'r set" and aggregation :: "'\<alpha> \<Rightarrow> ('v, 'b, 'r) Aggregation_Method" and \<delta> +
+locale transfer_axiom = voting_power domain semantics \<delta>
+  for domain :: "'\<alpha> set" and semantics :: "('\<alpha>, 'v, 'b, 'r) Voting_Rule_Transformation" and \<delta> +
   fixes 
     meet :: "'\<alpha> \<Rightarrow> '\<alpha> \<Rightarrow> '\<alpha>" and
     join :: "'\<alpha> \<Rightarrow> '\<alpha> \<Rightarrow> '\<alpha>" and
@@ -77,9 +79,8 @@ locale transfer_axiom = voting_power domain voters ballots results aggregation \
     transfer_axiom: "\<forall>m1 \<in> domain. \<forall>m2 \<in> domain. voters m1 = voters m2 \<longrightarrow>
       (\<forall>v \<in> voters m1. \<delta> (meet m1 m2) v + \<delta> (join m1 m2) v = \<delta> m1 v + \<delta> m2 v)"
 
-locale total_power_axiom = voting_power domain voters ballots results aggregation \<delta>
-  for domain :: "'\<alpha> set" and voters :: "'\<alpha> \<Rightarrow> 'v set" and ballots :: "'\<alpha> \<Rightarrow> 'b set" and
-    results :: "'\<alpha> \<Rightarrow> 'r set" and aggregation :: "'\<alpha> \<Rightarrow> ('v, 'b, 'r) Aggregation_Method" and 
+locale total_power_axiom = voting_power domain semantics \<delta>
+  for domain :: "'\<alpha> set" and semantics :: "('\<alpha>, 'v, 'b, 'r) Voting_Rule_Transformation" and
     \<delta> :: "('\<alpha>, 'v) Voting_Power" +
   fixes
     swings :: "'\<alpha> \<Rightarrow> 'v \<Rightarrow> ('v \<Rightarrow> 'b) set"
@@ -88,16 +89,17 @@ locale total_power_axiom = voting_power domain voters ballots results aggregatio
         profile x q \<and> p v \<noteq> q v \<and> aggregation x p \<noteq> aggregation x q" and
     total_power_axiom: 
       "\<forall>x \<in> domain. (\<Sum>v \<in> voters x. \<delta> x v) = (card (swings x v))/(card (profiles x))" 
-      (* TODO what to divide by? what's the equivalent of 2^(n-1) in SVGs? *)
+      (* TODO is this the division we want? *)
 
-locale ipower = voting_power domain voters ballots results aggregation \<delta>
-  for domain :: "'\<alpha> set" and voters :: "'\<alpha> \<Rightarrow> 'v set" and ballots :: "'\<alpha> \<Rightarrow> 'b set" and
-    results :: "'\<alpha> \<Rightarrow> 'r set" and aggregation :: "'\<alpha> \<Rightarrow> ('v, 'b, 'r) Aggregation_Method" and \<delta> +
+locale ipower = voting_power domain semantics \<delta>
+  for domain :: "'\<alpha> set" and semantics :: "('\<alpha>, 'v, 'b, 'r) Voting_Rule_Transformation" and \<delta> +
   fixes
-    space :: "('\<alpha> \<times> 'v) measure"
+    space :: "'\<alpha> \<Rightarrow> 'v \<Rightarrow> 'x measure" and
+    event :: "'\<alpha> \<Rightarrow> 'v \<Rightarrow> 'x set"
   assumes
-    space_sane: "prob_space space" and
-    ipower: "\<forall>m \<in> domain. \<forall>v \<in> voters m. \<exists>A \<in> sets space. 
-      \<delta> m v \<ge> 0 \<and> ennreal (\<delta> m v) = emeasure space A"
+    space_sane: "\<forall>m \<in> domain. \<forall>v \<in> voters m. prob_space (space m v)" and
+    event_sane: "\<forall>m \<in> domain. \<forall>v \<in> voters m. event m v \<in> sets (space m v)" and
+    ipower:
+      "\<forall>m \<in> domain. \<forall>v \<in> voters m. \<delta> m v \<ge> 0 \<and> \<delta> m v = emeasure (space m v) (event m v)"
 
 end

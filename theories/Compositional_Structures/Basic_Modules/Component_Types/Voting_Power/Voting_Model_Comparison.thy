@@ -16,20 +16,17 @@ section \<open>Voting Model Comparison\<close>
   However, since bijections only represent renaming, we just require the same names for simplicity.
 \<close>
 locale voting_model_comparison = 
-  m1: voting_model "X1::('\<alpha> set)" voters1 ballots1 results1 tallying1 + 
-  m2: voting_model "X2::('\<beta> set)" voters2 ballots2 results2 tallying2
+  m1: voting_model "X1::('\<alpha> set)" semantics1 + 
+  m2: voting_model "X2::('\<beta> set)" semantics2
   for X1 X2 and 
-    voters1 :: "'\<alpha> \<Rightarrow> 'v set" and voters2 :: "'\<beta> \<Rightarrow> 'v set" and
-    ballots1 :: "'\<alpha> \<Rightarrow> 'b set" and ballots2 :: "'\<beta> \<Rightarrow> 'b set" and 
-    results1 :: "'\<alpha> \<Rightarrow> 'r set" and results2 :: "'\<beta> \<Rightarrow> 'r set" and
-    tallying1 :: "'\<alpha> \<Rightarrow> ('v, 'b, 'r) Aggregation_Method" and 
-    tallying2 :: "'\<beta> \<Rightarrow> ('v, 'b, 'r) Aggregation_Method" +
+    semantics1 :: "('\<alpha>, 'v, 'b, 'r) Voting_Rule_Transformation" and 
+    semantics2 :: "('\<beta>, 'v, 'b, 'r) Voting_Rule_Transformation" +
   fixes model_equivalence :: "'\<alpha> \<Rightarrow> '\<beta> \<Rightarrow> bool" 
   assumes 
-    "\<forall>a \<in> X1. \<forall>b \<in> X2. model_equivalence a b \<longrightarrow> 
-      voters1 a = voters2 b \<and>
-      results1 a = results2 b \<and>
-      ballots1 a = ballots2 b \<and>
-      tallying1 a = tallying2 b"
+    equiv_sane: "\<forall>a \<in> X1. \<forall>b \<in> X2. model_equivalence a b \<longrightarrow> semantics1 a = semantics2 b"
+
+definition (in voting_model_comparison) domain_equivalence :: bool where
+  "domain_equivalence \<equiv> 
+    (\<forall>x1 \<in> X1. \<exists>x2 \<in> X2. model_equivalence x1 x2) \<and> (\<forall>x2 \<in> X2. \<exists>x1 \<in> X1. model_equivalence x1 x2)"
 
 end

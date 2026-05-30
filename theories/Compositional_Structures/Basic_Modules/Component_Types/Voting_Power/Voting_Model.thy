@@ -5,17 +5,45 @@ theory Voting_Model
 
 begin
 
-section \<open>Auxiliary Definitions\<close>
+section \<open>Voting Rule Definition\<close>
 
 type_synonym 'x Voters = "'x set" (*TODO*)
 type_synonym 'b Ballots = "'b set" (*TODO*)
 type_synonym 'r Results = "'r set" (*TODO*)
 type_synonym ('v, 'b, 'r) Aggregation_Method = "(('v \<Rightarrow> 'b) \<Rightarrow> 'r)" (*TODO*)
 
+text \<open>
+  We use voting rules as a kind of "canonical voting model" in the sense that every voting model
+  comes with a transformation of its structures into voting rules.
+\<close> 
+type_synonym ('v, 'b, 'r) Voting_Rule = 
+  "'v Voters \<times> 'b Ballots \<times> 'r Results \<times> ('v, 'b, 'r) Aggregation_Method"
+
+abbreviation rule :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> ('v, 'b, 'r) Aggregation_Method" where
+  "rule X \<equiv> snd (snd (snd X))"
+
+abbreviation rule_voters :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> 'v set" where
+  "rule_voters X \<equiv> fst X"
+
+abbreviation rule_ballots :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> 'b set" where
+  "rule_ballots X \<equiv> fst (snd X)"
+
+abbreviation rule_results :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> 'r set" where
+  "rule_results X \<equiv> fst (snd (snd X))"
+
+fun rule_profiles :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> ('v \<Rightarrow> 'b) set" where
+  "rule_profiles r = funcset (rule_voters r) (rule_ballots r)"
+
+abbreviation rule_profile :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> ('v \<Rightarrow> 'b) \<Rightarrow> bool" where
+  "rule_profile r p \<equiv> (p \<in> rule_profiles r)"
+
 fun preimg_in :: "'x set \<Rightarrow> ('x \<Rightarrow> 'y) \<Rightarrow> 'y set \<Rightarrow> 'x set" where
   "preimg_in X f Y = {x |x. x \<in> X \<and> f x \<in> Y}"
 
 section \<open>Voting Model Definition\<close>
+
+type_synonym ('v, 'b) Profile = "'v \<Rightarrow> 'b"
+type_synonym ('x, 'v, 'b, 'r) Voting_Rule_Transformation = "'x \<Rightarrow> ('v, 'b, 'r) Voting_Rule"
 
 (* 
 Voting models as types of a typeclass: 
@@ -26,8 +54,6 @@ Problem: 'v is an additional type variable.
  
 (* Same thing (+ more) as a locale: *)
 
-type_synonym ('v, 'b) Profile = "'v \<Rightarrow> 'b"
-
 \<comment> \<open>
   A voting model consists of a set of voting configurations of a given type \<^latex>\<open>\<tau>\<close>,
   each of which models a real world voting situation by modelling, at the very least,
@@ -37,18 +63,21 @@ type_synonym ('v, 'b) Profile = "'v \<Rightarrow> 'b"
 \<close>
 locale voting_model = 
   fixes
-    voting_setups :: "'\<tau> set" and
-    eligible_voters :: "'\<tau> \<Rightarrow> 'v set" and
-    ballot_set :: "'\<tau> \<Rightarrow> 'b set" and
-    result_set :: "'\<tau> \<Rightarrow> 'r set" and
-    aggregation_method :: "'\<tau> \<Rightarrow> ('v, 'b, 'r) Aggregation_Method"
+    voting_structures :: "'\<tau> set" and
+    semantics :: "('\<tau>, 'v, 'b, 'r) Voting_Rule_Transformation"
   assumes
-    "\<forall>c \<in> voting_setups. 
-      \<forall>p \<in> funcset (eligible_voters c) (ballot_set c). aggregation_method c p \<in> result_set c"
+    "\<forall>x \<in> voting_structures. (let rule_x = semantics x in
+      (\<forall>p \<in> rule_profiles rule_x. (rule rule_x) p \<in> rule_results rule_x))"
 begin
 
+abbreviation voters :: "'\<tau> \<Rightarrow> 'v Voters" where "voters x \<equiv> (rule_voters (semantics x))"
+abbreviation ballots :: "'\<tau> \<Rightarrow> 'b Ballots" where "ballots x \<equiv> (rule_ballots (semantics x))"
+abbreviation results :: "'\<tau> \<Rightarrow> 'r Results" where "results x \<equiv> (rule_results (semantics x))"
+abbreviation aggregation :: "'\<tau> \<Rightarrow> ('v, 'b, 'r) Aggregation_Method" where 
+  "aggregation x \<equiv> (rule (semantics x))"
+
 abbreviation valid_voter :: "'\<tau> \<Rightarrow> 'v \<Rightarrow> bool" where
-  "valid_voter x v \<equiv> (v \<in> eligible_voters x)"
+  "valid_voter x v \<equiv> (v \<in> rule_voters (semantics x))"
 
 fun differ_only_on :: "'v \<Rightarrow> ('v, 'b) Profile \<Rightarrow> ('v, 'b) Profile \<Rightarrow> bool" where
   "differ_only_on v p q = (\<forall>w. w \<noteq> v \<longrightarrow> p w = q w)"
@@ -56,16 +85,16 @@ fun differ_only_on :: "'v \<Rightarrow> ('v, 'b) Profile \<Rightarrow> ('v, 'b) 
 fun is_single_swing :: "'\<tau> \<Rightarrow> 'v \<Rightarrow> ('v, 'b) Profile \<Rightarrow> ('v, 'b) Profile \<Rightarrow> bool" where
   "is_single_swing setup v p q = 
     (differ_only_on v p q \<and> valid_voter setup v \<and> 
-    aggregation_method setup p \<noteq> aggregation_method setup q)"
+    rule (semantics setup) p \<noteq> rule (semantics setup) q)"
 
 fun has_swing :: "'\<tau> \<Rightarrow> 'v \<Rightarrow> ('v, 'b) Profile \<Rightarrow> bool" where
   "has_swing setup v p = (\<exists>q. is_single_swing setup v p q)"
 
-definition profile :: "'\<tau> \<Rightarrow> ('v, 'b) Profile \<Rightarrow> bool" where
-  "profile x p = (\<forall>v \<in> eligible_voters x. p v \<in> ballot_set x)"
+abbreviation profile :: "'\<tau> \<Rightarrow> ('v, 'b) Profile \<Rightarrow> bool" where
+  "profile \<equiv> rule_profile \<circ> semantics"
 
-definition profiles :: "'\<tau> \<Rightarrow> ('v, 'b) Profile set" where
-  "profiles x = Collect (profile x)"
+abbreviation profiles :: "'\<tau> \<Rightarrow> ('v, 'b) Profile set" where
+  "profiles \<equiv> rule_profiles \<circ> semantics"
 
 definition vote_changes :: "'\<tau> \<Rightarrow> ('v, 'b) Profile \<Rightarrow> 'v \<Rightarrow> ('v, 'b) Profile set" where
   "vote_changes x p v = {q |q. profile x q \<and> q v \<noteq> p v}"

@@ -6,6 +6,7 @@ begin
 
 section \<open>Banzhaf Index Definitions\<close>
 
+(* TODO definition of swing votes is now in 3 places, don't *)
 fun swing_vote_svg :: "'v set set \<Rightarrow> 'v \<Rightarrow> 'v set \<Rightarrow> ereal" where
   "swing_vote_svg \<F> v S = (if ((S \<union> {v}) \<in> \<F>) \<noteq> ((S - {v}) \<in> \<F>) then 1 else 0)"
 
@@ -31,6 +32,10 @@ Banzhaf Index is axiomatized on monotone SVGs by:
 - transfer
 *)
 
+text \<open>
+We may call a voting power index a Banzhaf index if it satisfies the extended formulation
+of the simple voting game Banzhaf index axiomatization.
+\<close>
 locale banzhaf_index_axioms =
   symmetry_axiom domain voters ballots results aggregation \<delta> +
   null_player_axiom domain voters ballots results aggregation \<delta> + 
@@ -41,6 +46,9 @@ locale banzhaf_index_axioms =
     voters :: "'\<alpha> \<Rightarrow> 'v set" and ballots aggregation swings
   (* No additional assumptions since the combined assumptions of the property locales suffice *)
 
+text \<open>
+We may call a voting power index a Banzhaf index if it measures the probability of TODO.
+\<close>
 locale banzhaf_index_probability = ipower domain voters ballots results aggregation \<delta> space 
   for domain :: "'\<alpha> set" and voters :: "'\<alpha> \<Rightarrow> 'v set" and ballots :: "'\<alpha> \<Rightarrow> 'b set" and
     results :: "'\<alpha> \<Rightarrow> 'r set" and aggregation :: "'\<alpha> \<Rightarrow> ('v, 'b, 'r) Aggregation_Method" and 
@@ -48,6 +56,10 @@ locale banzhaf_index_probability = ipower domain voters ballots results aggregat
   assumes
     "True" (* TODO assume Gleichverteilung or assume swing probability? *)
 
+text \<open>
+We may call a voting power index a Banzhaf index if, in situations that can be modelled as 
+simple voting games, it behaves like the original Banzhaf index on simple voting games.
+\<close>
 locale banzhaf_index_comparison = comp: svg_power_comparison 
   model_equivalence S b1 b2 r1 r2 banzhaf_svg_1 domain voters ballots results aggregation \<delta>
   for model_equivalence and S and b1 and b2 and r1 and r2 and domain :: "'\<alpha> set" and 
@@ -66,30 +78,26 @@ begin
 subsection \<open>Swing Votes\<close>
 
 fun svg_swings :: "'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> ('v \<Rightarrow> 'a) set" where
-  "svg_swings (V, \<F>) v = {}"
+  "svg_swings (V, \<F>) v = {svg_profile (V, \<F>) X | X. X \<subseteq> V \<and> ((X \<union> {v}) \<in> \<F>) \<noteq> ((X - {v}) \<in> \<F>)}"
 
-function meet_res :: "'b \<Rightarrow> 'b \<Rightarrow> 'b" where
-  "meet_res result1 _ = result1" |
-  "meet_res _ result1 = result1" |
-  "meet_res x y = x"
-        apply auto[5] 
-  sorry
+definition svg_swing_space :: "('v Simple_Voting_Game \<times> 'v) measure" where
+  "svg_swing_space = Abs_measure (\<Omega>::('v Simple_Voting_Game \<times> 'v) set, A, \<mu>)" (* TODO *)
 
-function join_res :: "'b \<Rightarrow> 'b \<Rightarrow> 'b" where
-  "join_res result2 _ = result2" |
-  "join_res _ result2 = result2" |
-  "join_res x y = x"
-        apply auto[5]
-  sorry
+fun meet_res :: "'b \<Rightarrow> 'b \<Rightarrow> 'b" where
+  "meet_res x y = (if result1 \<in> {x, y} then result1 else x)"
+
+fun join_res :: "'b \<Rightarrow> 'b \<Rightarrow> 'b" where
+  "join_res x y = (if result2 \<in> {x, y} then result2 else x)"
 
 subsection \<open>Axioms\<close>
 
 interpretation symmetry_satisfied:
-  symmetry_axiom S voters ballots results aggregation banzhaf_svg_1 voter_isomorphism_SVG
+  symmetry_axiom 
+    S svg_voters svg_ballots svg_results svg_aggregation banzhaf_svg_1 voter_isomorphism_SVG
 proof (unfold_locales, safe)
   fix V :: "'v set" and \<F> :: "'v set set" and v :: 'v
   assume 
-    non_voter: "v \<notin> voters_svg (V, \<F>)"
+    non_voter: "v \<notin> fst (V, \<F>)"
   thus "banzhaf_svg_1 (V, \<F>) v = 0"
     by simp
 next
@@ -98,7 +106,7 @@ next
       \<sigma> :: "'v \<Rightarrow> 'v" and p :: "('v, 'a) Profile"
   assume
     "(V, \<F>) \<in> S" and "(V', \<F>') \<in> S" and prof: "p \<in> mod.profiles (V', \<F>')" and
-    bij: "bij_betw \<sigma> (voters_svg (V, \<F>)) (voters_svg (V', \<F>'))" and
+    bij: "bij_betw \<sigma> (fst (V, \<F>)) (fst (V', \<F>'))" and
     iso: "(V', \<F>') = voter_isomorphism_SVG \<sigma> (V, \<F>)"
   hence rewrite_vot: "V' = \<sigma> ` V"
     unfolding svg_isomorphism.simps
@@ -122,7 +130,7 @@ next
       \<sigma> :: "'v \<Rightarrow> 'v" and v :: 'v
   assume 
     "(V, \<F>) \<in> S" and "(V', \<F>') \<in> S" and vot: "mod.valid_voter (V, \<F>) v" and
-    bij: "bij_betw \<sigma> (voters_svg (V, \<F>)) (voters_svg (V', \<F>'))" and
+    bij: "bij_betw \<sigma> (fst (V, \<F>)) (fst (V', \<F>'))" and
     iso: "(V', \<F>') = voter_isomorphism_SVG \<sigma> (V, \<F>)"
   hence rewrite_vot: "V' = \<sigma> ` V"
     unfolding svg_isomorphism.simps
@@ -145,13 +153,33 @@ interpretation simple_voting_game_banzhaf_axioms:
 
 interpretation simple_voting_game_banzhaf_axioms:
   banzhaf_index_axioms voter_isomorphism_SVG svg_meet svg_join meet_res join_res 
-    banzhaf_svg_1 S results voters ballots aggregation svg_swings
+    banzhaf_svg_1 S svg_results svg_voters svg_ballots svg_aggregation svg_swings
   sorry
 
 subsection \<open>I-Power\<close>
 
+interpretation simple_voting_game_banzhaf_probability:
+  banzhaf_index_probability 
+    S svg_voters svg_ballots svg_results svg_aggregation banzhaf_svg_1 svg_swing_space
+  sorry
+
 subsection \<open>Simple Voting Game Equality\<close>
 
+interpretation svg_comp: 
+  svg_power_comparison "(=)" S ballot1 ballot2 result1 result2 
+    banzhaf_svg_1 S svg_voters svg_ballots svg_results svg_aggregation banzhaf_svg_1
+  by (unfold_locales, simp_all, rule local.symmetry_satisfied.no_voter_no_power)
+
+text \<open>
+A trivial Banzhaf index that coincides with the Banzhaf index on simple voting games is the
+Banzhaf index on simple voting games itself.
+\<close>
+interpretation simple_voting_game_banzhaf_equality:
+  banzhaf_index_comparison 
+    "(=)" S ballot1 ballot2 result1 result2 
+    S svg_voters svg_ballots svg_results svg_aggregation banzhaf_svg_1
+  by (unfold_locales, safe, simp_all, unfold svg_comp.power_equality_def, simp)
+                                                                                       
 end
 
 end
