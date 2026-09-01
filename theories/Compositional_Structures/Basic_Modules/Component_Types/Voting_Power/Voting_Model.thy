@@ -40,6 +40,17 @@ abbreviation rule_profile :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> ('v \<Right
 fun preimg_in :: "'x set \<Rightarrow> ('x \<Rightarrow> 'y) \<Rightarrow> 'y set \<Rightarrow> 'x set" where
   "preimg_in X f Y = {x |x. x \<in> X \<and> f x \<in> Y}"
 
+fun valid_voting_rule :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> bool" where
+  "valid_voting_rule f = (\<forall>p \<in> rule_profiles f. (rule f) p \<in> rule_results f)"
+
+fun rename_aggregation :: 
+  "('v, 'b, 'r) Aggregation_Method \<Rightarrow> ('v \<Rightarrow> 'v) \<Rightarrow> ('v, 'b, 'r) Aggregation_Method" where
+  "rename_aggregation f \<sigma> p = f (p \<circ> \<sigma>)"
+
+fun rename_rule :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> ('v \<Rightarrow> 'v) \<Rightarrow> ('v, 'b, 'r) Voting_Rule" where
+  "rename_rule f \<sigma> = 
+    (\<sigma> ` (rule_voters f), rule_ballots f, rule_results f, rename_aggregation (rule f) \<sigma>)"
+
 section \<open>Voting Model Definition\<close>
 
 type_synonym ('v, 'b) Profile = "'v \<Rightarrow> 'b"
@@ -65,9 +76,7 @@ locale voting_model =
   fixes
     voting_structures :: "'\<tau> set" and
     semantics :: "('\<tau>, 'v, 'b, 'r) Voting_Rule_Transformation"
-  assumes
-    "\<forall>x \<in> voting_structures. (let rule_x = semantics x in
-      (\<forall>p \<in> rule_profiles rule_x. (rule rule_x) p \<in> rule_results rule_x))"
+  assumes "\<forall>x \<in> voting_structures. valid_voting_rule (semantics x)"
 begin
 
 abbreviation voters :: "'\<tau> \<Rightarrow> 'v Voters" where "voters x \<equiv> (rule_voters (semantics x))"
@@ -75,6 +84,12 @@ abbreviation ballots :: "'\<tau> \<Rightarrow> 'b Ballots" where "ballots x \<eq
 abbreviation results :: "'\<tau> \<Rightarrow> 'r Results" where "results x \<equiv> (rule_results (semantics x))"
 abbreviation aggregation :: "'\<tau> \<Rightarrow> ('v, 'b, 'r) Aggregation_Method" where 
   "aggregation x \<equiv> (rule (semantics x))"
+
+abbreviation card_vot :: "'\<tau> \<Rightarrow> nat" where
+  "card_vot x \<equiv> card (voters x)"
+
+abbreviation card_ball :: "'\<tau> \<Rightarrow> nat" where
+  "card_ball x \<equiv> card (ballots x)"
 
 abbreviation valid_voter :: "'\<tau> \<Rightarrow> 'v \<Rightarrow> bool" where
   "valid_voter x v \<equiv> (v \<in> rule_voters (semantics x))"

@@ -75,14 +75,17 @@ fun svg_profile :: "'v Simple_Voting_Game \<Rightarrow> 'v set \<Rightarrow> ('v
 
 end
 
+definition valid_simple_voting_games :: "'v Simple_Voting_Game set" where
+  "valid_simple_voting_games = {G | G. snd G \<subseteq> Pow (fst G)}"
+
 \<comment> \<open>
 Models yes-no-decisions: 
 Voters choose one out of True (= yes) and False (= no) and the result is True (= yes) iff
 a winning coalition of voters chose yes, otherwise the result is False (= no).
 \<close>
 interpretation boolean_svg:
-  simple_voting_game_model S True False True False
-proof (unfold_locales, unfold Let_def, simp_all, safe)
+  simple_voting_game_model valid_simple_voting_games True False True False
+proof (unfold_locales, simp_all, safe)
   fix V :: "'a set" and \<F> :: "'a set set" and p :: "('a, bool) Profile"
   assume "p \<in> rule_voters (svg_rule True False True False (V, \<F>)) 
                 \<rightarrow> rule_ballots (svg_rule True False True False (V, \<F>))"
@@ -91,6 +94,12 @@ proof (unfold_locales, unfold Let_def, simp_all, safe)
   thus "rule (svg_rule True False True False (V, \<F>)) p
           \<in> rule_results (svg_rule True False True False (V, \<F>))"
     by simp
+next
+  fix V :: "'a set" and \<F> :: "'a set set" and X :: "'a set" and v :: 'a
+  assume "(V, \<F>) \<in> valid_simple_voting_games" and "X \<in> coalitions (V, \<F>)" and "v \<in> X"
+  thus "v \<in> rule_voters (svg_rule True False True False (V, \<F>))"
+    unfolding valid_simple_voting_games_def
+    by auto
 qed
 
 section \<open>Simple Voting Game Voting Power\<close>
@@ -99,16 +108,9 @@ locale svg_power = svg: simple_voting_game_model S b1 b2 r1 r2
   for S :: "'v Simple_Voting_Game set" and b1 :: 'b and b2 and r1 :: 'r and r2 +
   fixes
     \<delta> :: "('v Simple_Voting_Game, 'v) Voting_Power"
-  assumes
-    no_voter_no_power: "\<forall>a \<in> S. \<forall>v. v \<notin> fst a \<longrightarrow> \<delta> a v = 0"
 
 sublocale svg_power \<subseteq> voting_power S "svg_rule b1 b2 r1 r2" \<delta>
-proof (unfold_locales)
-  have "\<forall>a. rule_voters (svg_rule b1 b2 r1 r2 a) = fst a"
-    by simp
-  thus "\<forall>a\<in>S. \<forall>v. v \<notin> rule_voters (svg_rule b1 b2 r1 r2 a) \<longrightarrow> \<delta> a v = 0"
-    using local.no_voter_no_power
-    by metis
-qed
+  using svg.mod.voting_model_axioms voting_power_def 
+  by blast
 
 end

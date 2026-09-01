@@ -6,7 +6,7 @@ begin
 
 section \<open>Banzhaf Index Definitions\<close>
 
-(* TODO definition of swing votes is now in 3 places, don't *)
+(* TODO definition of swing votes is now in 3 places, don't do that :( *)
 fun swing_vote_svg :: "'v set set \<Rightarrow> 'v \<Rightarrow> 'v set \<Rightarrow> ereal" where
   "swing_vote_svg \<F> v S = (if ((S \<union> {v}) \<in> \<F>) \<noteq> ((S - {v}) \<in> \<F>) then 1 else 0)"
 
@@ -15,8 +15,8 @@ text \<open>
   Count the number of coalitions a voter can change by switching their vote and average over those.
 \<close>
 fun banzhaf_svg_1 :: "('v Simple_Voting_Game, 'v) Voting_Power" where
-  "banzhaf_svg_1 (V, \<F>) v = (if v \<notin> V \<or> infinite V then 0 else
-    (1/(2^(card V))) * (\<Sum> S \<in> Pow V. swing_vote_svg \<F> v S))"
+  "banzhaf_svg_1 (V, \<F>) v = 
+    (if v \<notin> V \<or> infinite V then 0 else (1/(2^(card V))) * (\<Sum> S \<in> Pow V. swing_vote_svg \<F> v S))"
 (* TODO: Original definition just assumes finite voter sets.
 Formalizing the indices here forces one to explicitly think about infinite sets 
 since every statement about the index includes infinite sets in its domain. 
@@ -33,41 +33,41 @@ Banzhaf Index is axiomatized on monotone SVGs by:
 *)
 
 text \<open>
-We may call a voting power index a Banzhaf index if it satisfies the extended formulation
-of the simple voting game Banzhaf index axiomatization.
+We call a voting power index (axiom-based) Banzhaf index if it satisfies the extended formulation
+of the simple voting game Banzhaf index axiomatization, 
+i.e., the null player, total power, symmetry and transfer axioms.
 \<close>
 locale banzhaf_index_axioms =
-  symmetry_axiom domain voters ballots results aggregation \<delta> +
-  null_player_axiom domain voters ballots results aggregation \<delta> + 
-  transfer_axiom domain voters ballots results aggregation \<delta> +
-  total_power_axiom domain voters ballots results aggregation \<delta> swings
-  (* TODO total power axiom *)
-  for \<delta> and domain :: "'\<alpha> set" and results :: "'\<alpha> \<Rightarrow> 'r set" and 
-    voters :: "'\<alpha> \<Rightarrow> 'v set" and ballots aggregation swings
+  null_player_axiom domain semantics \<delta> sv +
+  total_power_axiom domain semantics \<delta> sv +
+  symmetry_axiom domain semantics \<delta> \<Phi> +
+  transfer_axiom domain semantics \<delta> tf1 tf2
+  for domain semantics \<delta> sv \<Phi> tf1 tf2
   (* No additional assumptions since the combined assumptions of the property locales suffice *)
 
 text \<open>
-We may call a voting power index a Banzhaf index if it measures the probability of TODO.
+We call a voting power index (probability-based) Banzhaf index if it measures the probability of 
+having a swing vote according to some probability space on the ballot profiles.
 \<close>
-locale banzhaf_index_probability = ipower domain voters ballots results aggregation \<delta> space 
-  for domain :: "'\<alpha> set" and voters :: "'\<alpha> \<Rightarrow> 'v set" and ballots :: "'\<alpha> \<Rightarrow> 'b set" and
-    results :: "'\<alpha> \<Rightarrow> 'r set" and aggregation :: "'\<alpha> \<Rightarrow> ('v, 'b, 'r) Aggregation_Method" and 
-    \<delta> and space +
+locale banzhaf_index_probability = 
+  ipower domain semantics \<delta> space "\<lambda>m v. {p :: ('v, 'b) Profile. sv m v p}" 
+  for domain :: "'\<alpha> set" and semantics :: "('\<alpha>, 'v, 'b, 'r) Voting_Rule_Transformation" and \<delta> and
+      space :: "'\<alpha> \<Rightarrow> 'v \<Rightarrow> ('v, 'b) Profile measure" and 
+      sv :: "'\<alpha> \<Rightarrow> 'v \<Rightarrow> ('v, 'b) Profile \<Rightarrow> bool" +
   assumes
-    "True" (* TODO assume Gleichverteilung or assume swing probability? *)
+    swing_vote_predicate: "swing_vote_predicate sv"
 
 text \<open>
 We may call a voting power index a Banzhaf index if, in situations that can be modelled as 
 simple voting games, it behaves like the original Banzhaf index on simple voting games.
 \<close>
 locale banzhaf_index_comparison = comp: svg_power_comparison 
-  model_equivalence S b1 b2 r1 r2 banzhaf_svg_1 domain voters ballots results aggregation \<delta>
-  for model_equivalence and S and b1 and b2 and r1 and r2 and domain :: "'\<alpha> set" and 
-    voters :: "'\<alpha> \<Rightarrow> 'v set" and ballots :: "'\<alpha> \<Rightarrow> 'b set" and results :: "'\<alpha> \<Rightarrow> 'r set" and 
-    aggregation :: "'\<alpha> \<Rightarrow> ('v, 'b, 'r) Aggregation_Method" and \<delta> +
+  model_equivalence S b1 b2 r1 r2 banzhaf_svg_1 domain semantics \<delta>
+  for model_equivalence and S and b1 and b2 and r1 and r2 and 
+    \<delta> and semantics and domain :: "'\<alpha> set" +
   assumes
     "comp.power_equality"
-
+ 
 section \<open>Simple Voting Game Banzhaf Index\<close>
 
 context simple_voting_game_model
@@ -80,8 +80,8 @@ subsection \<open>Swing Votes\<close>
 fun svg_swings :: "'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> ('v \<Rightarrow> 'a) set" where
   "svg_swings (V, \<F>) v = {svg_profile (V, \<F>) X | X. X \<subseteq> V \<and> ((X \<union> {v}) \<in> \<F>) \<noteq> ((X - {v}) \<in> \<F>)}"
 
-definition svg_swing_space :: "('v Simple_Voting_Game \<times> 'v) measure" where
-  "svg_swing_space = Abs_measure (\<Omega>::('v Simple_Voting_Game \<times> 'v) set, A, \<mu>)" (* TODO *)
+fun \<Phi>_svg :: "('v \<Rightarrow> 'v) \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game" where
+  "\<Phi>_svg \<sigma> (V, \<F>) = (\<sigma> ` V, {\<sigma> ` C |C. C \<in> \<F>})"
 
 fun meet_res :: "'b \<Rightarrow> 'b \<Rightarrow> 'b" where
   "meet_res x y = (if result1 \<in> {x, y} then result1 else x)"
@@ -91,9 +91,9 @@ fun join_res :: "'b \<Rightarrow> 'b \<Rightarrow> 'b" where
 
 subsection \<open>Axioms\<close>
 
-interpretation symmetry_satisfied:
-  symmetry_axiom 
-    S svg_voters svg_ballots svg_results svg_aggregation banzhaf_svg_1 voter_isomorphism_SVG
+(*
+interpretation svg_symmetry_satisfied:
+  symmetry_axiom S "svg_rule ballot1 ballot2 result1 result2" banzhaf_svg_1 \<Phi>_svg
 proof (unfold_locales, safe)
   fix V :: "'v set" and \<F> :: "'v set set" and v :: 'v
   assume 
@@ -181,5 +181,7 @@ interpretation simple_voting_game_banzhaf_equality:
   by (unfold_locales, safe, simp_all, unfold svg_comp.power_equality_def, simp)
                                                                                        
 end
+
+*)
 
 end

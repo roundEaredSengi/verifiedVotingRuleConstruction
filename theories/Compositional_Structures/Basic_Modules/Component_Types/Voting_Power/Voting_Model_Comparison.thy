@@ -21,9 +21,10 @@ locale voting_model_comparison =
   for X1 X2 and 
     semantics1 :: "('\<alpha>, 'v, 'b, 'r) Voting_Rule_Transformation" and 
     semantics2 :: "('\<beta>, 'v, 'b, 'r) Voting_Rule_Transformation" +
-  fixes model_equivalence :: "'\<alpha> \<Rightarrow> '\<beta> \<Rightarrow> bool" 
+  fixes model_equivalence :: "'\<alpha> \<Rightarrow> '\<beta> \<Rightarrow> bool"
   assumes 
-    equiv_sane: "\<forall>a \<in> X1. \<forall>b \<in> X2. model_equivalence a b \<longrightarrow> semantics1 a = semantics2 b"
+    equivalence_relation: 
+      "\<forall>a \<in> X1. \<forall>b \<in> X2. model_equivalence a b \<longrightarrow> semantics1 a = semantics2 b"
 
 definition (in voting_model_comparison) domain_equivalence :: bool where
   "domain_equivalence \<equiv> 

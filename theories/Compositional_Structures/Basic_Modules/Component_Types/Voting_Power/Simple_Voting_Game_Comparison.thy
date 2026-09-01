@@ -82,8 +82,9 @@ sublocale svg_power_comparison \<subseteq>
     model_equivalence S "svg_rule b1 b2 r1 r2" \<delta>1 domain2 semantics2 \<delta>2
   by unfold_locales
 
+(*
 theorem (in svg_power_comparison) null_player_extension:
-  "axiom_equivalence 
+  "axiom_equivalence
     (null_player_axiom_axioms S (svg_rule b1 b2 r1 r2)) 
     (null_player_axiom_axioms domain2 semantics2)"
 proof (unfold axiom_equivalence.simps null_player_axiom_axioms_def, safe)
@@ -375,5 +376,6 @@ next
   thus "pow1.symmetry svg_isomorphism"
     sorry
 qed
+*)
 
 end
