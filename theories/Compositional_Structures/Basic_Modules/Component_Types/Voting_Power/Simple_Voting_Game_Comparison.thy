@@ -82,6 +82,13 @@ sublocale svg_power_comparison \<subseteq>
     model_equivalence S "svg_rule b1 b2 r1 r2" \<delta>1 domain2 semantics2 \<delta>2
   by unfold_locales
 
+theorem (in svg_power_comparison) null_player_extension:
+  (* TODO add assumptions about "swing" *)
+  "axiom_equivalence
+    (\<lambda>\<delta>. null_player_axiom S (svg_rule b1 b2 r1 r2) \<delta> svg_swing) 
+    (\<lambda>\<delta>. null_player_axiom domain2 semantics2 \<delta> swing2)"
+  sorry
+
 (*
 theorem (in svg_power_comparison) null_player_extension:
   "axiom_equivalence

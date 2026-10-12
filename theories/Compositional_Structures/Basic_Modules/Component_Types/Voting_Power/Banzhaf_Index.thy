@@ -80,16 +80,27 @@ subsection \<open>Swing Votes\<close>
 fun svg_swings :: "'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> ('v \<Rightarrow> 'a) set" where
   "svg_swings (V, \<F>) v = {svg_profile (V, \<F>) X | X. X \<subseteq> V \<and> ((X \<union> {v}) \<in> \<F>) \<noteq> ((X - {v}) \<in> \<F>)}"
 
+fun svg_swing :: "'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> ('v \<Rightarrow> 'a) \<Rightarrow> bool" where
+  "svg_swing G v p = (p \<in> svg_swings G v)"
+
 fun \<Phi>_svg :: "('v \<Rightarrow> 'v) \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game" where
   "\<Phi>_svg \<sigma> (V, \<F>) = (\<sigma> ` V, {\<sigma> ` C |C. C \<in> \<F>})"
 
-fun meet_res :: "'b \<Rightarrow> 'b \<Rightarrow> 'b" where
-  "meet_res x y = (if result1 \<in> {x, y} then result1 else x)"
-
-fun join_res :: "'b \<Rightarrow> 'b \<Rightarrow> 'b" where
-  "join_res x y = (if result2 \<in> {x, y} then result2 else x)"
+fun alpha_svg :: "('v \<Rightarrow> 'a) \<Rightarrow> 'a \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game" where
+  "alpha_svg p r (V, \<F>) = (let C = preimg_in V p {ballot1} in 
+    (
+      (if r = ballot1 \<and> C \<in> \<F> then (V, \<F> - {C}) else (V, \<F>)) 
+    ))" (* TODO the other cases *)
 
 subsection \<open>Axioms\<close>
+
+interpretation svg_banzhaf_sat_null_player:
+  null_player_axiom S "svg_rule ballot1 ballot2 result1 result2" banzhaf_svg_1 svg_swing
+  sorry
+
+interpretation svg_banzhaf_sat_symmetry:
+  symmetry_axiom S "svg_rule ballot1 ballot2 result1 result2" banzhaf_svg_1 \<Phi>_svg
+  sorry
 
 (*
 interpretation svg_symmetry_satisfied:

@@ -82,15 +82,25 @@ locale symmetry_axiom = voting_power domain semantics \<delta>
     symmetry_axiom: 
       "\<forall>m \<in> domain. \<forall>\<sigma> :: 'v \<Rightarrow> 'v. bij \<sigma> \<longrightarrow> (\<forall>v \<in> voters m. \<delta> m v = \<delta> (\<Phi> \<sigma> m) (\<sigma> v))"
 
+fun rule_transform :: 
+  "('v, 'b, 'r) Voting_Rule \<Rightarrow> ('v, 'b) Profile \<Rightarrow> 'r \<Rightarrow> ('v, 'b, 'r) Voting_Rule" where
+  "rule_transform (V, B, R, f) p r = (V, B, R, (\<lambda>q. if q = p then r else f q))"
+
 locale transfer_axiom = voting_power domain semantics \<delta>
   for domain :: "'\<alpha> set" and semantics :: "('\<alpha>, 'v, 'b, 'r) Voting_Rule_Transformation" and \<delta> +
   fixes
-    (* \<odot> :: "'\<alpha> \<Rightarrow> '\<alpha> \<Rightarrow> '\<alpha>" and \<otimes> :: "'\<alpha> \<Rightarrow> '\<alpha> \<Rightarrow> '\<alpha>" *)
-    tf1 :: "'\<alpha> \<Rightarrow> '\<alpha> \<Rightarrow> '\<alpha>" and tf2 :: "'\<alpha> \<Rightarrow> '\<alpha> \<Rightarrow> '\<alpha>"
+    alpha :: "('v \<Rightarrow> 'b) \<Rightarrow> 'r \<Rightarrow> '\<alpha> \<Rightarrow> '\<alpha>" and
+    beta :: "('v \<Rightarrow> 'b) \<Rightarrow> 'v \<Rightarrow> ('v \<Rightarrow> 'b) set" 
   assumes
-    model_transformation_1: "\<forall>a \<in> domain. \<forall>b \<in> domain. tf1 a b \<in> domain" and
-    model_transformation_2: "\<forall>a \<in> domain. \<forall>b \<in> domain. tf2 a b \<in> domain" and
-    transfer_axiom: "True" (* TODO *)
+    result_transfer_transformation: 
+      "\<forall>m \<in> domain. \<forall>p \<in> profiles m. \<forall>r \<in> results m. 
+        semantics (alpha p r m) = rule_transform (semantics m) p r" and
+    impact_set: "\<forall>m \<in> domain. \<forall>p \<in> profiles m. \<forall>v \<in> voters m. p \<in> beta p v" and
+    transfer_axiom: "\<forall>m \<in> domain. \<forall>n \<in> domain. 
+      (voters m = voters n \<and> ballots m = ballots n \<and> results m = results n) \<longrightarrow> 
+      (\<forall>p \<in> profiles m. \<forall>v \<in> voters m. \<forall>r \<in> results m.
+        (\<forall>q \<in> beta p v. rule (semantics m) q = rule (semantics n) q) \<longrightarrow> 
+        \<delta> (alpha p r m) v - \<delta> m v = \<delta> (alpha p r n) v - \<delta> n v)"
 
 locale ipower = voting_power domain semantics \<delta>
   for domain :: "'\<alpha> set" and semantics :: "('\<alpha>, 'v, 'b, 'r) Voting_Rule_Transformation" and \<delta> +

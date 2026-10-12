@@ -22,11 +22,14 @@ fun aggregation_method ::
   "aggregation_method ball1 ball2 res1 res2 (V, \<F>) p = 
     (if (preimg_in V p {ball1} \<in> \<F>) then res1 else res2)" (* TODO require p to be valid *)
 
+definition valid_simple_voting_games :: "'v Simple_Voting_Game set" where
+  "valid_simple_voting_games = {G | G. snd G \<subseteq> Pow (fst G)}"
+
 fun monotone_SVG :: "'v Simple_Voting_Game \<Rightarrow> bool" where
   "monotone_SVG (V, \<F>) = (\<forall>S \<in> Pow V. \<forall>T \<in> Pow V. S \<subseteq> T \<longrightarrow> S \<in> \<F> \<longrightarrow> T \<in> \<F>)"
 
 definition monotone_SVGs :: "'v Simple_Voting_Game set" where
-  "monotone_SVGs \<equiv> Collect monotone_SVG"
+  "monotone_SVGs \<equiv> {G | G. G \<in> valid_simple_voting_games \<and> monotone_SVG G}"
 
 section \<open>Simple Voting Game Transformations\<close>
 
@@ -74,9 +77,6 @@ fun svg_profile :: "'v Simple_Voting_Game \<Rightarrow> 'v set \<Rightarrow> ('v
   "svg_profile (V, \<F>) X = (\<lambda>v. (if v \<in> X then ballot1 else ballot2))"
 
 end
-
-definition valid_simple_voting_games :: "'v Simple_Voting_Game set" where
-  "valid_simple_voting_games = {G | G. snd G \<subseteq> Pow (fst G)}"
 
 \<comment> \<open>
 Models yes-no-decisions: 
