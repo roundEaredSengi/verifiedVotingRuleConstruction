@@ -3,7 +3,6 @@ theory Banzhaf_Index
 
 begin
 
-
 section \<open>Banzhaf Index Definitions\<close>
 
 (* TODO definition of swing votes is now in 3 places, don't do that :( *)
@@ -72,25 +71,6 @@ section \<open>Simple Voting Game Banzhaf Index\<close>
 
 context simple_voting_game_model
 begin 
-
-(* TODO how to "term "model.voting_setups""? *)
-
-subsection \<open>Swing Votes\<close>
-
-fun svg_swings :: "'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> ('v \<Rightarrow> 'a) set" where
-  "svg_swings (V, \<F>) v = {svg_profile (V, \<F>) X | X. X \<subseteq> V \<and> ((X \<union> {v}) \<in> \<F>) \<noteq> ((X - {v}) \<in> \<F>)}"
-
-fun svg_swing :: "'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> ('v \<Rightarrow> 'a) \<Rightarrow> bool" where
-  "svg_swing G v p = (p \<in> svg_swings G v)"
-
-fun \<Phi>_svg :: "('v \<Rightarrow> 'v) \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game" where
-  "\<Phi>_svg \<sigma> (V, \<F>) = (\<sigma> ` V, {\<sigma> ` C |C. C \<in> \<F>})"
-
-fun alpha_svg :: "('v \<Rightarrow> 'a) \<Rightarrow> 'a \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game" where
-  "alpha_svg p r (V, \<F>) = (let C = preimg_in V p {ballot1} in 
-    (
-      (if r = ballot1 \<and> C \<in> \<F> then (V, \<F> - {C}) else (V, \<F>)) 
-    ))" (* TODO the other cases *)
 
 subsection \<open>Axioms\<close>
 
@@ -194,5 +174,7 @@ interpretation simple_voting_game_banzhaf_equality:
 end
 
 *)
+
+end
 
 end

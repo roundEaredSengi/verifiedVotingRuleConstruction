@@ -82,12 +82,17 @@ sublocale svg_power_comparison \<subseteq>
     model_equivalence S "svg_rule b1 b2 r1 r2" \<delta>1 domain2 semantics2 \<delta>2
   by unfold_locales
 
-theorem (in svg_power_comparison) null_player_extension:
-  (* TODO add assumptions about "swing" *)
-  "axiom_equivalence
-    (\<lambda>\<delta>. null_player_axiom S (svg_rule b1 b2 r1 r2) \<delta> svg_swing) 
-    (\<lambda>\<delta>. null_player_axiom domain2 semantics2 \<delta> swing2)"
-  sorry
+theorem (in svg_power_comparison) svg_null_player_equivalence:
+  assumes
+    equiv_domains: comp.domain_equivalence and
+    sw2: "pow2.swing_vote_predicate swing2" and
+    equiv_swings: "\<forall>G \<in> S. \<forall>m \<in> domain2. model_equivalence G m \<longrightarrow> pow1.svg.svg_swing G = swing2 m"
+  shows 
+    "axiom_equivalence
+      (\<lambda>\<delta>. null_player_axiom S (svg_rule b1 b2 r1 r2) \<delta>1 pow1.svg.svg_swing) 
+      (\<lambda>\<delta>. null_player_axiom domain2 semantics2 \<delta>2 swing2)"
+  using assms pow1.svg_swing_is_predicate null_player_extension[of pow1.svg.svg_swing swing2]
+  by satx
 
 (*
 theorem (in svg_power_comparison) null_player_extension:

@@ -31,17 +31,6 @@ fun monotone_SVG :: "'v Simple_Voting_Game \<Rightarrow> bool" where
 definition monotone_SVGs :: "'v Simple_Voting_Game set" where
   "monotone_SVGs \<equiv> {G | G. G \<in> valid_simple_voting_games \<and> monotone_SVG G}"
 
-section \<open>Simple Voting Game Transformations\<close>
-
-fun svg_isomorphism :: "('v \<Rightarrow> 'v) \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game" where
-  "svg_isomorphism \<pi> (V, \<F>) = (\<pi> ` V, (image \<pi>) ` \<F>)"
-
-fun svg_meet :: "'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game" where
-  "svg_meet G1 G2 = (fst G1, coalitions G1 \<union> coalitions G2)"
-
-fun svg_join :: "'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game" where
-  "svg_join G1 G2 = (fst G1, coalitions G1 \<inter> coalitions G2)"
-
 section \<open>Simple Voting Games as a Voting Model\<close> 
 
 fun svg_rule :: 
@@ -102,6 +91,37 @@ next
     by auto
 qed
 
+section \<open>Simple Voting Game Parameters\<close>
+
+fun svg_isomorphism :: "('v \<Rightarrow> 'v) \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game" where
+  "svg_isomorphism \<pi> (V, \<F>) = (\<pi> ` V, (image \<pi>) ` \<F>)"
+
+fun svg_meet :: "'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game" where
+  "svg_meet G1 G2 = (fst G1, coalitions G1 \<union> coalitions G2)"
+
+fun (in simple_voting_game_model) svg_join :: 
+  "'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game" where
+  "svg_join G1 G2 = (fst G1, coalitions G1 \<inter> coalitions G2)"
+
+fun (in simple_voting_game_model) svg_swings :: 
+  "'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> ('v \<Rightarrow> 'a) set" where
+  "svg_swings (V, \<F>) v = {svg_profile (V, \<F>) X | X. X \<subseteq> V \<and> ((X \<union> {v}) \<in> \<F>) \<noteq> ((X - {v}) \<in> \<F>)}"
+
+fun (in simple_voting_game_model) svg_swing :: 
+  "'v Simple_Voting_Game \<Rightarrow> 'v \<Rightarrow> ('v \<Rightarrow> 'a) \<Rightarrow> bool" where
+  "svg_swing G v p = (p \<in> svg_swings G v)"
+
+fun (in simple_voting_game_model) \<Phi>_svg :: 
+  "('v \<Rightarrow> 'v) \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game" where
+  "\<Phi>_svg \<sigma> (V, \<F>) = (\<sigma> ` V, {\<sigma> ` C |C. C \<in> \<F>})"
+
+fun (in simple_voting_game_model) alpha_svg :: 
+  "('v \<Rightarrow> 'a) \<Rightarrow> 'a \<Rightarrow> 'v Simple_Voting_Game \<Rightarrow> 'v Simple_Voting_Game" where
+  "alpha_svg p r (V, \<F>) = (let C = preimg_in V p {ballot1} in 
+    (
+      (if r = ballot1 \<and> C \<in> \<F> then (V, \<F> - {C}) else (V, \<F>)) 
+    ))" (* TODO the other cases *)
+
 section \<open>Simple Voting Game Voting Power\<close>
 
 locale svg_power = svg: simple_voting_game_model S b1 b2 r1 r2
@@ -112,5 +132,128 @@ locale svg_power = svg: simple_voting_game_model S b1 b2 r1 r2
 sublocale svg_power \<subseteq> voting_power S "svg_rule b1 b2 r1 r2" \<delta>
   using svg.mod.voting_model_axioms voting_power_def 
   by blast
+
+(* TODO: make case distinction less repetitive, close "sorry"s *)
+theorem (in svg_power) svg_swing_is_predicate:
+  "swing_vote_predicate svg.svg_swing"
+proof (simp, safe)
+  fix V :: "'v set" and \<F> :: "'v set set" and v :: 'v and p :: "'v \<Rightarrow> 'b"
+  assume 
+    valid: "(V, \<F>) \<in> S" and 
+    vot_v: "v \<in> svg.mod.voters (V, \<F>)" and 
+    valid_prof: "p \<in> svg.mod.voters (V, \<F>) \<rightarrow> svg.mod.ballots (V, \<F>)" and
+    swing: "p \<in> svg.svg_swings (V, \<F>) v"
+  then obtain C :: "'v set" where 
+    coal_p: "p = svg.svg_profile (V, \<F>) C"
+    by auto
+  hence preimg_p: "preimg_in V p {b1} = C"
+    sorry
+  let ?thesis = 
+    "\<exists>q\<in>svg.mod.voters (V, \<F>) \<rightarrow> svg.mod.ballots (V, \<F>).
+          p v \<noteq> q v \<and> svg.mod.aggregation (V, \<F>) p \<noteq> svg.mod.aggregation (V, \<F>) q"
+  show ?thesis
+  proof (cases "p v = b1")
+    case True
+    hence "v \<in> C"
+      using coal_p
+      unfolding svg.svg_profile.simps
+      by (metis simple_voting_game_model_axioms_def simple_voting_game_model_def
+          svg.simple_voting_game_model_axioms)
+    hence "C = C \<union> {v}"
+      by auto
+    moreover have "\<forall>C' \<subseteq> V. C' \<noteq> C \<longrightarrow> p \<noteq> svg.svg_profile (V, \<F>) C'"
+      using coal_p
+      unfolding svg.svg_profile.simps
+      by (metis simple_voting_game_model_axioms_def simple_voting_game_model_def 
+          subsetI subset_antisym svg.simple_voting_game_model_axioms)
+    moreover have "\<exists>C' \<subseteq> V. p = svg.svg_profile (V, \<F>) C' \<and> (C' \<union> {v} \<in> \<F>) \<noteq> (C' - {v} \<in> \<F>)"
+      using swing
+      by auto
+    ultimately have swing_minus_v: "(C \<in> \<F>) \<noteq> (C - {v} \<in> \<F>)"
+      using swing coal_p
+      by metis
+    let ?q = "svg.svg_profile (V, \<F>) (C - {v})"
+    have preimg_q: "preimg_in V ?q {b1} = C - {v}"
+      using preimg_p True
+      sorry
+    have neq: "?q v = b2"
+      by simp
+        have "svg.mod.aggregation (V, \<F>) p = rule (svg_rule b1 b2 r1 r2 (V, \<F>)) p"
+      by simp
+    moreover have "svg.mod.aggregation (V, \<F>) ?q = rule (svg_rule b1 b2 r1 r2 (V, \<F>)) ?q"
+      by simp
+    moreover have "(if C \<in> \<F> then r1 else r2) \<noteq> (if C - {v} \<in> \<F> then r1 else r2)"
+      using swing_minus_v
+      by (metis simple_voting_game_model_axioms_def simple_voting_game_model_def
+          svg.simple_voting_game_model_axioms)
+    moreover with this have 
+      "rule (svg_rule b1 b2 r1 r2 (V, \<F>)) p \<noteq> rule (svg_rule b1 b2 r1 r2 (V, \<F>)) ?q"
+      using preimg_p preimg_q
+      unfolding svg_rule.simps aggregation_method.simps
+      by simp
+    ultimately have "svg.mod.aggregation (V, \<F>) p \<noteq> svg.mod.aggregation (V, \<F>) ?q"
+      by satx
+    moreover have "?q \<in> svg.mod.voters (V, \<F>) \<rightarrow> svg.mod.ballots (V, \<F>)"
+      by simp
+    moreover have "p v \<noteq> ?q v"
+      using neq True
+      by (metis simple_voting_game_model_axioms_def simple_voting_game_model_def
+          svg.simple_voting_game_model_axioms)
+    ultimately show ?thesis by metis
+  next
+    case False
+    moreover have "p v \<in> {b1, b2}"
+      using valid_prof
+      unfolding Pi_def
+      by (metis coal_p insertCI svg.svg_profile.simps)
+    ultimately have "p v = b2"
+      by simp
+    hence "v \<notin> C"
+      using coal_p
+      unfolding svg.svg_profile.simps
+      by (metis simple_voting_game_model_axioms_def simple_voting_game_model_def
+          svg.simple_voting_game_model_axioms)
+    hence "C = C - {v}"
+      by auto
+    moreover have "\<forall>C' \<subseteq> V. C' \<noteq> C \<longrightarrow> p \<noteq> svg.svg_profile (V, \<F>) C'"
+      using coal_p
+      unfolding svg.svg_profile.simps
+      by (metis simple_voting_game_model_axioms_def simple_voting_game_model_def 
+          subsetI subset_antisym svg.simple_voting_game_model_axioms)
+    moreover have "\<exists>C' \<subseteq> V. p = svg.svg_profile (V, \<F>) C' \<and> (C' \<union> {v} \<in> \<F>) \<noteq> (C' - {v} \<in> \<F>)"
+      using swing
+      by auto
+    ultimately have swing_plus_v: "(C \<union> {v} \<in> \<F>) \<noteq> (C \<in> \<F>)"
+      using swing coal_p
+      by metis
+    let ?q = "svg.svg_profile (V, \<F>) (C \<union> {v})"
+    have preimg_q: "preimg_in V ?q {b1} = C \<union> {v}"
+      using preimg_p False
+      sorry
+    have neq: "?q v = b1"
+      by simp
+        have "svg.mod.aggregation (V, \<F>) p = rule (svg_rule b1 b2 r1 r2 (V, \<F>)) p"
+      by simp
+    moreover have "svg.mod.aggregation (V, \<F>) ?q = rule (svg_rule b1 b2 r1 r2 (V, \<F>)) ?q"
+      by simp
+    moreover have "(if C \<union> {v} \<in> \<F> then r1 else r2) \<noteq> (if C \<in> \<F> then r1 else r2)"
+      using swing_plus_v
+      by (metis simple_voting_game_model_axioms_def simple_voting_game_model_def
+          svg.simple_voting_game_model_axioms)
+    moreover with this have 
+      "rule (svg_rule b1 b2 r1 r2 (V, \<F>)) p \<noteq> rule (svg_rule b1 b2 r1 r2 (V, \<F>)) ?q"
+      using preimg_p preimg_q
+      unfolding svg_rule.simps aggregation_method.simps
+      by simp
+    ultimately have "svg.mod.aggregation (V, \<F>) p \<noteq> svg.mod.aggregation (V, \<F>) ?q"
+      by satx
+    moreover have "?q \<in> svg.mod.voters (V, \<F>) \<rightarrow> svg.mod.ballots (V, \<F>)"
+      by simp
+    moreover have "p v \<noteq> ?q v"
+      using neq False
+      by metis
+    ultimately show ?thesis by metis
+  qed
+qed
 
 end

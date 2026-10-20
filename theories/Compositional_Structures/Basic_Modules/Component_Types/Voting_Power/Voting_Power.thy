@@ -53,7 +53,7 @@ locale null_player_axiom = voting_power domain semantics \<delta>
   assumes
     swing_vote_predicate: "swing_vote_predicate sv" and
     null_player_axiom: 
-      "\<forall>m \<in> domain. \<forall>v \<in> voters m. (has_swing m v = (\<lambda>p. False)) \<longrightarrow> \<delta> m v = 0"
+      "\<forall>m \<in> domain. \<forall>v \<in> voters m. (sv m v = (\<lambda>p. False)) \<longrightarrow> \<delta> m v = 0"
 
 locale total_power_axiom = voting_power domain semantics \<delta>
   for domain :: "'\<alpha> set" and semantics :: "('\<alpha>, 'v, 'b, 'r) Voting_Rule_Transformation" and
