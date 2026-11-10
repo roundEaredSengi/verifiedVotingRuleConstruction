@@ -16,8 +16,8 @@ section \<open>Voting Model Comparison\<close>
   However, since bijections only represent renaming, we just require the same names for simplicity.
 \<close>
 locale voting_model_comparison = 
-  m1: voting_model "X1::('\<alpha> set)" semantics1 + 
-  m2: voting_model "X2::('\<beta> set)" semantics2
+  mod1: voting_model "X1::('\<alpha> set)" semantics1 + 
+  mod2: voting_model "X2::('\<beta> set)" semantics2
   for X1 X2 and 
     semantics1 :: "('\<alpha>, 'v, 'b, 'r) Voting_Rule_Transformation" and 
     semantics2 :: "('\<beta>, 'v, 'b, 'r) Voting_Rule_Transformation" +
