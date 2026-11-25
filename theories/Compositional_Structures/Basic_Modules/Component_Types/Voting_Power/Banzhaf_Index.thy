@@ -827,7 +827,7 @@ proof (unfold_locales, rule local.svg_np_axiom.swing_vote_predicate, standard, s
   moreover have "mod.swings svg_swing G v = {p | p. p \<in> mod.profiles G \<and> svg_swing G v p}"
     by simp
   ultimately show "svg_swings G v = mod.swings svg_swing G v"
-    using swing_rewrite
+    using swing_rewrite[of G v]
     by metis
 qed
   
@@ -846,7 +846,7 @@ theorem (in finite_simple_voting_game_model) monotone_SVG_banzhaf_sat_axioms:
   assumes "S \<subseteq> monotone_SVGs"
   shows "svg_banzhaf_index_axioms.is_axm_banzhaf_index banzhaf_svg_1"
   using svg_banzhaf_sat_symmetry svg_banzhaf_sat_null_player
-    svg_banzhaf_sat_total_power svg_banzhaf_sat_transfer[OF assms] 
+    svg_banzhaf_sat_total_power svg_banzhaf_sat_transfer 
   unfolding svg_banzhaf_index_axioms.is_axm_banzhaf_index.simps 
         svg_banzhaf_index_axioms.vp_axiom.satisfies.simps
         svg_sym_axiom.satisfies.simps svg_np_axiom.satisfies.simps 
