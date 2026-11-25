@@ -7,7 +7,7 @@ begin
 
 section \<open>Voting Rule Definition\<close>
 
-type_synonym 'x Voters = "'x set" (*TODO*)
+type_synonym 'x Voters = "'x set" (*TODO comment? I think*)
 type_synonym 'b Ballots = "'b set" (*TODO*)
 type_synonym 'r Results = "'r set" (*TODO*)
 type_synonym ('v, 'b, 'r) Aggregation_Method = "(('v \<Rightarrow> 'b) \<Rightarrow> 'r)" (*TODO*)
@@ -40,6 +40,7 @@ abbreviation rule_profile :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> ('v \<Right
 fun preimg_in :: "'x set \<Rightarrow> ('x \<Rightarrow> 'y) \<Rightarrow> 'y set \<Rightarrow> 'x set" where
   "preimg_in X f Y = {x |x. x \<in> X \<and> f x \<in> Y}"
 
+(* TODO require well-formedness of f (profiles coincide on domain \<rightarrow> results coincide) *)
 fun valid_voting_rule :: "('v, 'b, 'r) Voting_Rule \<Rightarrow> bool" where
   "valid_voting_rule f = (\<forall>p \<in> rule_profiles f. (rule f) p \<in> rule_results f)"
 
@@ -115,5 +116,4 @@ definition vote_changes :: "'\<tau> \<Rightarrow> ('v, 'b) Profile \<Rightarrow>
   "vote_changes x p v = {q |q. profile x q \<and> q v \<noteq> p v}"
 
 end
-
 end

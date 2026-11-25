@@ -49,6 +49,7 @@ fun (in voting_model) null_player_ax :: "('\<tau>, 'v, 'b) Swing_Vote \<Rightarr
 
 (* TODO why does this work, but directly inserting this 
     into the total_power_axiom function doesn't? *)
+(* TODO require well-formedness of sv (profiles that coincide on V are mapped to the same value)  *)
 fun (in voting_model) power_sum :: "('\<tau>, 'v) Voting_Power \<Rightarrow> '\<tau> \<Rightarrow> ereal" where
   "power_sum \<delta> m = (\<Sum>v \<in> voters m. \<delta> m v)"
 
@@ -67,8 +68,7 @@ fun (in voting_model) total_power_ax :: "('\<tau>, 'v, 'b) Swing_Vote \<Rightarr
   where "total_power_ax sv \<delta> =
     (\<forall>m \<in> voting_structures.
       power_sum \<delta> m =
-      (\<Sum>v \<in> voters m. card {p |p. p \<in> profiles m \<and> sv m v p}) / (power (card_ball m) (card_vot m))
-    )"
+      (\<Sum>v \<in> voters m. ereal (card (swings sv m v))) / (power (card_ball m) (card_vot m)))"
 
 locale total_power_axiom = voting_power_axiom domain semantics \<Phi>
   for domain :: "'\<tau> set" and semantics :: "('\<tau>, 'v, 'b, 'r) Voting_Rule_Transformation" and \<Phi> +
@@ -103,6 +103,20 @@ fun rule_transform ::
   "('v, 'b, 'r) Voting_Rule \<Rightarrow> ('v, 'b) Profile \<Rightarrow> 'r \<Rightarrow> ('v, 'b, 'r) Voting_Rule" where
   "rule_transform (V, B, R, f) p r = (V, B, R, (\<lambda>q. if (\<forall>v \<in> V. q v = p v) then r else f q))" 
 
+lemma rule_transform_transforms: 
+  fixes f :: "('v, 'b, 'r) Voting_Rule" and p :: "('v, 'b) Profile" and r :: 'r
+  shows "rule (rule_transform f p r) p = r"
+proof -
+  have "f = (rule_voters f, rule_ballots f, rule_results f, rule f)"
+    by simp
+  hence 
+    "rule (rule_transform f p r) p = (if (\<forall>v \<in> rule_voters f. p v = p v) then r else (rule f) p)"
+    using rule_transform.simps[of "rule_voters f" "rule_ballots f" "rule_results f" "rule f" p r]
+    by simp
+  thus ?thesis
+    by simp
+qed
+
 type_synonym ('\<tau>, 'v, 'b, 'r) Result_Transform = "('v, 'b) Profile \<Rightarrow> 'r \<Rightarrow> '\<tau> \<Rightarrow> '\<tau>"
 type_synonym ('\<tau>, 'v, 'b) Profile_Reachability = "('v, 'b) Profile \<Rightarrow> 'v \<Rightarrow> ('v, 'b) Profile set"
 
@@ -132,6 +146,7 @@ text \<open>
   Whenever two models behave the same on profiles impacted by p, 
   the power shift caused by result-transforming p into r should be 
   equal for both models as well.
+  When they do not behave the same, we make no requirements.
 \<close>
 fun (in voting_model) transfer_ax :: 
   "('\<tau>, 'v, 'b, 'r) Result_Transform \<Rightarrow> ('\<tau>, 'v, 'b) Profile_Reachability \<Rightarrow> 
